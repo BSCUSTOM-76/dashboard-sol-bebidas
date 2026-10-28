@@ -43,12 +43,6 @@ st.markdown("""
         font-weight: 700;
         margin-bottom: 0px;
     }
-    .sub-titulo {
-        color: #8b949e;
-        font-size: 14px;
-        margin-top: 2px;
-        margin-bottom: 0px;
-    }
     .login-card {
         background-color: #161b22;
         border: 1px solid #30363d;
@@ -257,7 +251,6 @@ meses_nomes = {1: "Janeiro", 2: "Fevereiro", 3: "Março", 4: "Abril", 5: "Maio",
 # ==========================================
 if menu_escolha == "Contas a Pagar":
     st.markdown('<div class="titulo-customizado">Gestão de Contas a Pagar</div>', unsafe_allow_html=True)
-    st.markdown('<div class="sub-titulo">Monitorização executiva de pagamentos a partir de <b>Janeiro de 2026</b></div>', unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
 
     df_p, msg_p = processar_relatorio(caminho_pdf_pag, "pagamento")
@@ -355,7 +348,6 @@ if menu_escolha == "Contas a Pagar":
 # ==========================================
 elif menu_escolha == "Contas a Receber":
     st.markdown('<div class="titulo-customizado">Gestão de Contas a Receber</div>', unsafe_allow_html=True)
-    st.markdown('<div class="sub-titulo">Monitorização executiva de recebimentos a partir de <b>Janeiro de 2026</b></div>', unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
 
     df_r, msg_r = processar_relatorio(caminho_pdf_rec, "recebimento")
