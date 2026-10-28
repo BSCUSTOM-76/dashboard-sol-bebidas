@@ -91,7 +91,8 @@ if not st.session_state["autenticado"]:
             utilizadores_autorizados = {
                 "Bruno": "Sol@2024",
                 "financeiro": "solbebe2026",
-                "diretoria": "sol123"
+                "diretoria": "sol123",
+                "Fabio": "sol@finan"
             }
             
             if usuario_input in utilizadores_autorizados and utilizadores_autorizados[usuario_input] == senha_input:
