@@ -90,8 +90,8 @@ if not st.session_state["autenticado"]:
         if st.button("Entrar no Sistema", use_container_width=True):
             utilizadores_autorizados = {
                 "Bruno": "Sol@2024",
-                "financeiro": "solbebe2026",
-                "diretoria": "sol123",
+                "financeiro": "solbeb2026",
+                "diretoria": "finan@sol",
                 "Fabio": "sol@finan"
             }
             
