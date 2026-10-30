@@ -273,7 +273,6 @@ if menu_escolha == "Contas a Pagar":
         maior_val = f"R$ {df_f['Valor'].max() if len(df_f)>0 else 0:,.2f}"
         media_val = f"R$ {df_f['Valor'].mean() if len(df_f)>0 else 0:,.2f}"
 
-        # Cartões de Métricas com Botões Interativos
         c1, c2, c3, c4 = st.columns(4)
         
         with c1:
@@ -295,47 +294,4 @@ if menu_escolha == "Contas a Pagar":
                 st.rerun()
                 
         with c4:
-            st.markdown(f'''<div class="card"><div class="metric-title">📊 Média</div><div class="metric-value">{media_val}</div></div>''', unsafe_allow_html=True)
-            if st.button("📊 Acima da Média", use_container_width=True, key="b_media_p"):
-                st.session_state["filtro_pag"] = "acima_media"
-                st.rerun()
-
-        # Aplicar filtro interativo escolhido nos cartões
-        df_tabela_pag = df_f.copy()
-        if st.session_state["filtro_pag"] == "maior" and len(df_f) > 0:
-            max_v = df_f["Valor"].max()
-            df_tabela_pag = df_f[df_f["Valor"] == max_v]
-            st.info("ℹ️ A exibir apenas o registo com o **Maior Pagamento**.")
-        elif st.session_state["filtro_pag"] == "acima_media" and len(df_f) > 0:
-            med_v = df_f["Valor"].mean()
-            df_tabela_pag = df_f[df_f["Valor"] > med_v]
-            st.info("ℹ️ A exibir apenas os registos com valores **acima da média**.")
-
-        col_g1, col_g2 = st.columns(2)
-        with col_g1:
-            st.markdown('<div class="card">', unsafe_allow_html=True)
-            st.subheader("📊 Top 5 Fornecedores (Valores)")
-            df_top = df_f.groupby("Entidade")["Valor"].sum().nlargest(5)
-            st.bar_chart(df_top)
-            st.markdown('</div>', unsafe_allow_html=True)
-            
-        with col_g2:
-            st.markdown('<div class="card">', unsafe_allow_html=True)
-            st.subheader("📋 Ranking Detalhado de Fornecedores")
-            df_forn_detalhe = df_f.groupby("Entidade")["Valor"].sum().nlargest(10).reset_index()
-            df_forn_detalhe["Valor"] = df_forn_detalhe["Valor"].apply(lambda x: f"R$ {x:,.2f}")
-            st.dataframe(df_forn_detalhe, use_container_width=True, hide_index=True)
-            st.markdown('</div>', unsafe_allow_html=True)
-
-        st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.subheader("📈 Evolução Temporal de Pagamentos")
-        d_d = df_f.groupby("Vencimento")["Valor"].sum().reset_index()
-        d_d["DT"] = pd.to_datetime(d_d["Vencimento"], format="%d/%m/%Y")
-        st.line_chart(d_d.sort_values("DT").set_index("Vencimento")["Valor"])
-        st.markdown('</div>', unsafe_allow_html=True)
-
-        st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.subheader("📋 Lista Detalhada de Pagamentos")
-        df_tb = df_tabela_pag[["Vencimento", "Entidade", "Valor"]].copy()
-        df_tb.columns = ["Vencimento", "Fornecedor", "Valor"]
-        df_tb["Valor"] = df_tb["Valor"].
+            st.markdown(f'''<div class="card"><div class="metric-title">📊 Média</div><div class="metric-value">{media_val}</div></div>''', unsafe_
