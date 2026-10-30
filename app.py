@@ -92,7 +92,8 @@ if not st.session_state["autenticado"]:
                 "Bruno": "Sol@2024",
                 "financeiro": "solbeb2026",
                 "diretoria": "finan@sol",
-                "Fabio": "sol@finan"
+                "Fabio": "sol@finan",
+                "Clezio: "sol@fin"
             }
             
             if usuario_input in utilizadores_autorizados and utilizadores_autorizados[usuario_input] == senha_input:
