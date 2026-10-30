@@ -90,7 +90,7 @@ if not st.session_state["autenticado"]:
         if st.button("Entrar no Sistema", use_container_width=True):
             utilizadores_autorizados = {
                 "Bruno": "Sol@2024",
-                "Clezio": "fin@2026",
+                "financeiro": "solbeb2026",
                 "diretoria": "finan@sol",
                 "Fabio": "sol@finan"
             }
@@ -261,19 +261,27 @@ if menu_escolha == "Contas a Pagar":
         ano_sel = st.sidebar.selectbox("Ano (Pagar)", anos, key="ap1")
         df_f = df_p[df_p["Ano"] == ano_sel]
         
-        mes_labels = ["Todos os Meses"] + [meses_nomes.get(m, str(m)) for m in sorted(df_f["Mes"].unique().tolist())]
-        mes_sel = st.sidebar.selectbox("Mês (Pagar)", mes_labels, key="mp1")
+        # Filtro por Período Personalizado (Data Inicial e Final) na Sidebar
+        st.sidebar.markdown("---")
+        st.sidebar.subheader("📅 Período (Pagar)")
+        min_dp = df_f["Data_Obj"].min().date() if not df_f.empty else pd.to_datetime("2026-01-01").date()
+        max_dp = df_f["Data_Obj"].max().date() if not df_f.empty else pd.to_datetime("2026-12-31").date()
         
-        if mes_sel != "Todos os Meses":
-            mn = [k for k, v in meses_nomes.items() if v == mes_sel][0]
-            df_f = df_f[df_f["Mes"] == mn]
+        periodo_p = st.sidebar.date_input("Intervalo de Datas", value=(min_dp, max_dp), key="date_range_pag")
+        
+        if isinstance(periodo_p, tuple):
+            if len(periodo_p) == 2:
+                d_ini_p, d_fim_p = periodo_p
+                df_f = df_f[(df_f["Data_Obj"].dt.date >= d_ini_p) & (df_f["Data_Obj"].dt.date <= d_fim_p)]
+            elif len(periodo_p) == 1:
+                d_ini_p = periodo_p[0]
+                df_f = df_f[df_f["Data_Obj"].dt.date == d_ini_p]
 
         val_total = f"R$ {df_f['Valor'].sum():,.2f}"
         qtd_reg = f"{len(df_f)}"
         maior_val = f"R$ {df_f['Valor'].max() if len(df_f)>0 else 0:,.2f}"
         media_val = f"R$ {df_f['Valor'].mean() if len(df_f)>0 else 0:,.2f}"
 
-        # Cartões de Métricas com Botões Interativos
         c1, c2, c3, c4 = st.columns(4)
         
         with c1:
@@ -300,7 +308,6 @@ if menu_escolha == "Contas a Pagar":
                 st.session_state["filtro_pag"] = "acima_media"
                 st.rerun()
 
-        # Aplicar filtro interativo escolhido nos cartões
         df_tabela_pag = df_f.copy()
         if st.session_state["filtro_pag"] == "maior" and len(df_f) > 0:
             max_v = df_f["Valor"].max()
@@ -358,42 +365,28 @@ elif menu_escolha == "Contas a Receber":
         ano_sel_r = st.sidebar.selectbox("Ano (Receber)", anos_r, key="ar2")
         df_fr = df_r[df_r["Ano"] == ano_sel_r]
         
-        mes_labels_r = ["Todos os Meses"] + [meses_nomes.get(m, str(m)) for m in sorted(df_fr["Mes"].unique().tolist())]
-        mes_sel_r = st.sidebar.selectbox("Mês (Receber)", mes_labels_r, key="mr2")
+        # Filtro por Período Personalizado (Data Inicial e Final) na Sidebar
+        st.sidebar.markdown("---")
+        st.sidebar.subheader("📅 Período (Receber)")
+        min_dr = df_fr["Data_Obj"].min().date() if not df_fr.empty else pd.to_datetime("2026-01-01").date()
+        max_dr = df_fr["Data_Obj"].max().date() if not df_fr.empty else pd.to_datetime("2026-12-31").date()
         
-        if mes_sel_r != "Todos os Meses":
-            mn_r = [k for k, v in meses_nomes.items() if v == mes_sel_r][0]
-            df_fr = df_fr[df_fr["Mes"] == mn_r]
+        periodo_r = st.sidebar.date_input("Intervalo de Datas", value=(min_dr, max_dr), key="date_range_rec")
+        
+        if isinstance(periodo_r, tuple):
+            if len(periodo_r) == 2:
+                d_ini_r, d_fim_r = periodo_r
+                df_fr = df_fr[(df_fr["Data_Obj"].dt.date >= d_ini_r) & (df_fr["Data_Obj"].dt.date <= d_fim_r)]
+            elif len(periodo_r) == 1:
+                d_ini_r = periodo_r[0]
+                df_fr = df_fr[df_fr["Data_Obj"].dt.date == d_ini_r]
 
         val_total_r = f"R$ {df_fr['Valor'].sum():,.2f}"
         qtd_reg_r = f"{len(df_fr)}"
         maior_val_r = f"R$ {df_fr['Valor'].max() if len(df_fr)>0 else 0:,.2f}"
         media_val_r = f"R$ {df_fr['Valor'].mean() if len(df_fr)>0 else 0:,.2f}"
 
-        # Cartões de Métricas Interativos para Contas a Receber
         cr1, cr2, cr3, cr4 = st.columns(4)
-        # --- NOVO: RESUMO E FILTRO POR DIA (CONTAS A RECEBER) ---
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.subheader("📅 Total a Receber por Dia")
-        
-        # Agrupar valores por data de vencimento
-        df_por_dia = df_fr.groupby("Vencimento")["Valor"].agg(['sum', 'count']).reset_index()
-        df_por_dia["DT"] = pd.to_datetime(df_por_dia["Vencimento"], format="%d/%m/%Y")
-        df_por_dia = df_por_dia.sort_values("DT")
-        
-        # Criar formato amigável para seleção (Data + Valor Total)
-        df_por_dia["Display"] = df_por_dia.apply(lambda row: f"{row['Vencimento']} — Total: R$ {row['sum']:,.2f}", axis=1)
-        
-        opcoes_dias = ["Todos os Dias"] + df_por_dia["Display"].tolist()
-        dia_selecionado = st.selectbox("Selecione um dia específico para detalhar:", opcoes_dias, key="sel_dia_rec")
-        
-        if dia_selecionado != "Todos os Dias":
-            data_escolhida = dia_selecionado.split(" — ")[0]
-            df_tabela_rec = df_fr[df_fr["Vencimento"] == data_escolhida]
-            st.info(f"ℹ️ A filtrar os recebimentos para o dia **{data_escolhida}**.")
-            
-        st.markdown('</div>', unsafe_allow_html=True)
         
         with cr1:
             st.markdown(f'''<div class="card"><div class="metric-title">💰 Total a Receber</div><div class="metric-value">{val_total_r}</div></div>''', unsafe_allow_html=True)
@@ -419,9 +412,26 @@ elif menu_escolha == "Contas a Receber":
                 st.session_state["filtro_rec"] = "acima_media"
                 st.rerun()
 
-        # Aplicar filtro interativo escolhido nos cartões de receber
+        # --- SELETOR E TOTAL POR DIA (CONTAS A RECEBER) ---
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown('<div class="card">', unsafe_allow_html=True)
+        st.subheader("📅 Total e Filtro por Dia de Vencimento")
+        
+        df_por_dia = df_fr.groupby("Vencimento")["Valor"].agg(['sum', 'count']).reset_index()
+        df_por_dia["DT_Aux"] = pd.to_datetime(df_por_dia["Vencimento"], format="%d/%m/%Y", errors="coerce")
+        df_por_dia = df_por_dia.sort_values("DT_Aux")
+        
+        opcoes_dias = ["Todos os Dias"] + [f"{row['Vencimento']} — Total: R$ {row['sum']:,.2f}" for _, row in df_por_dia.iterrows()]
+        dia_selecionado = st.selectbox("Selecione um dia específico para filtrar:", opcoes_dias, key="sel_dia_rec")
+        st.markdown('</div>', unsafe_allow_html=True)
+
         df_tabela_rec = df_fr.copy()
-        if st.session_state["filtro_rec"] == "maior" and len(df_fr) > 0:
+        
+        if dia_selecionado != "Todos os Dias":
+            data_escolhida = dia_selecionado.split(" — ")[0]
+            df_tabela_rec = df_fr[df_fr["Vencimento"] == data_escolhida]
+            st.info(f"ℹ️ A exibir apenas os recebimentos do dia **{data_escolhida}**.")
+        elif st.session_state["filtro_rec"] == "maior" and len(df_fr) > 0:
             max_vr = df_fr["Valor"].max()
             df_tabela_rec = df_fr[df_fr["Valor"] == max_vr]
             st.info("ℹ️ A exibir apenas o registo com o **Maior Recebimento**.")
