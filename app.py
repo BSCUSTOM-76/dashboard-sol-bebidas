@@ -440,6 +440,28 @@ elif menu_escolha == "Contas a Receber":
         st.markdown('</div>', unsafe_allow_html=True)
     else:
         st.warning(f"⚠️ Recebimentos - Ficheiro: '{os.path.basename(caminho_pdf_rec) if caminho_pdf_rec else 'Nenhum'}' | Estado: {msg_r}")
+        # --- NOVO: RESUMO E FILTRO POR DIA (CONTAS A RECEBER) ---
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown('<div class="card">', unsafe_allow_html=True)
+        st.subheader("📅 Total a Receber por Dia")
+        
+        # Agrupar valores por data de vencimento
+        df_por_dia = df_fr.groupby("Vencimento")["Valor"].agg(['sum', 'count']).reset_index()
+        df_por_dia["DT"] = pd.to_datetime(df_por_dia["Vencimento"], format="%d/%m/%Y")
+        df_por_dia = df_por_dia.sort_values("DT")
+        
+        # Criar formato amigável para seleção (Data + Valor Total)
+        df_por_dia["Display"] = df_por_dia.apply(lambda row: f"{row['Vencimento']} — Total: R$ {row['sum']:,.2f} ({row['count']} reg.)", axis=1)
+        
+        opcoes_dias = ["Todos os Dias"] + df_por_dia["Display"].tolist()
+        dia_selecionado = st.selectbox("Selecione um dia específico para detalhar:", opcoes_dias, key="sel_dia_rec")
+        
+        if dia_selecionado != "Todos os Dias":
+            data_escolhida = dia_selecionado.split(" — ")[0]
+            df_tabela_rec = df_fr[df_fr["Vencimento"] == data_escolhida]
+            st.info(f"ℹ️ A filtrar os recebimentos para o dia **{data_escolhida}**.")
+            
+        st.markdown('</div>', unsafe_allow_html=True)
 
 # --- ASSINATURA NO RODAPÉ ESQUERDO DA BARRA LATERAL ---
 with st.sidebar:
