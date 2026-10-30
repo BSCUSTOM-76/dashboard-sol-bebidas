@@ -309,3 +309,18 @@ if menu_escolha == "Contas a Pagar":
         elif st.session_state["filtro_pag"] == "acima_media" and len(df_f) > 0:
             med_v = df_f["Valor"].mean()
             df_tabela_pag = df_f[df_f["Valor"] > med_v]
+            st.info("ℹ️ A exibir apenas os registos com valores **acima da média**.")
+
+        col_g1, col_g2 = st.columns(2)
+        with col_g1:
+            st.markdown('<div class="card">', unsafe_allow_html=True)
+            st.subheader("📊 Top 5 Fornecedores (Valores)")
+            df_top = df_f.groupby("Entidade")["Valor"].sum().nlargest(5)
+            st.bar_chart(df_top)
+            st.markdown('</div>', unsafe_allow_html=True)
+            
+        with col_g2:
+            st.markdown('<div class="card">', unsafe_allow_html=True)
+            st.subheader("📋 Ranking Detalhado de Fornecedores")
+            df_forn_detalhe = df_f.groupby("Entidade")["Valor"].sum().nlargest(10).reset_index()
+            df_forn
