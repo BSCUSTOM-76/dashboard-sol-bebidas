@@ -383,7 +383,7 @@ elif menu_escolha == "Contas a Receber":
         df_por_dia = df_por_dia.sort_values("DT")
         
         # Criar formato amigável para seleção (Data + Valor Total)
-        df_por_dia["Display"] = df_por_dia.apply(lambda row: f"{row['Vencimento']} — Total: R$ {row['sum']:,.2f} ({row['count']}", axis=1)
+        df_por_dia["Display"] = df_por_dia.apply(lambda row: f"{row['Vencimento']} — Total: R$ {row['sum']:,.2f}", axis=1)
         
         opcoes_dias = ["Todos os Dias"] + df_por_dia["Display"].tolist()
         dia_selecionado = st.selectbox("Selecione um dia específico para detalhar:", opcoes_dias, key="sel_dia_rec")
