@@ -273,6 +273,7 @@ if menu_escolha == "Contas a Pagar":
         maior_val = f"R$ {df_f['Valor'].max() if len(df_f)>0 else 0:,.2f}"
         media_val = f"R$ {df_f['Valor'].mean() if len(df_f)>0 else 0:,.2f}"
 
+        # Cartões de Métricas com Botões Interativos
         c1, c2, c3, c4 = st.columns(4)
         
         with c1:
@@ -299,6 +300,7 @@ if menu_escolha == "Contas a Pagar":
                 st.session_state["filtro_pag"] = "acima_media"
                 st.rerun()
 
+        # Aplicar filtro interativo escolhido nos cartões
         df_tabela_pag = df_f.copy()
         if st.session_state["filtro_pag"] == "maior" and len(df_f) > 0:
             max_v = df_f["Valor"].max()
@@ -354,11 +356,4 @@ elif menu_escolha == "Contas a Receber":
     if not df_r.empty:
         anos_r = sorted(df_r["Ano"].unique().tolist())
         ano_sel_r = st.sidebar.selectbox("Ano (Receber)", anos_r, key="ar2")
-        df_fr = df_r[df_r["Ano"] == ano_sel_r]
-        
-        mes_labels_r = ["Todos os Meses"] + [meses_nomes.get(m, str(m)) for m in sorted(df_fr["Mes"].unique().tolist())]
-        mes_sel_r = st.sidebar.selectbox("Mês (Receber)", mes_labels_r, key="mr2")
-        
-        if mes_sel_r != "Todos os Meses":
-            mn_r = [k for k, v in meses_nomes.items() if v == mes_sel_r][0]
-            df_fr = df_fr
+        df_fr = df
