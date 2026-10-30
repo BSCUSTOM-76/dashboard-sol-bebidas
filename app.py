@@ -327,6 +327,10 @@ if menu_escolha == "Contas a Pagar":
             st.markdown('</div>', unsafe_allow_html=True)
             
         with col_g2:
+            with col_g2:
             st.markdown('<div class="card">', unsafe_allow_html=True)
             st.subheader("📋 Ranking Detalhado de Fornecedores")
-            df_forn_detalhe = df_f.groupby("Ent
+            df_forn_detalhe = df_f.groupby("Entidade")["Valor"].sum().nlargest(10).reset_index()
+            df_forn_detalhe["Valor"] = df_forn_detalhe["Valor"].apply(lambda x: f"R$ {x:,.2f}")
+            st.dataframe(df_forn_detalhe, use_container_width=True, hide_index=True)
+            st.markdown('</div>', unsafe_allow_html=True)
