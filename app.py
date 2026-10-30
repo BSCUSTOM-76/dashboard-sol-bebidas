@@ -276,22 +276,34 @@ if menu_escolha == "Contas a Pagar":
         c1, c2, c3, c4 = st.columns(4)
         
         with c1:
-            st.markdown(f'''<div class="card"><div class="metric-title">💰 Total Previsto</div><div class="metric-value">{val_total}</div></div>''', unsafe_allow_html=True)
-            if st.button("🔄 Ver Todos", use_container_width=True, key="b_todos_p"):
+            st.markdown('<div class="card"><div class="metric-title">Total Previsto</div><div class="metric-value">' + val_total + '</div></div>', unsafe_allow_html=True)
+            if st.button("Ver Todos", use_container_width=True, key="b_todos_p"):
                 st.session_state["filtro_pag"] = "todos"
                 st.rerun()
                 
         with c2:
-            st.markdown(f'''<div class="card"><div class="metric-title">📋 Registos</div><div class="metric-value">{qtd_reg}</div></div>''', unsafe_allow_html=True)
-            if st.button("📋 Ver Lista Completa", use_container_width=True, key="b_reg_p"):
+            st.markdown('<div class="card"><div class="metric-title">Registos</div><div class="metric-value">' + qtd_reg + '</div></div>', unsafe_allow_html=True)
+            if st.button("Ver Lista Completa", use_container_width=True, key="b_reg_p"):
                 st.session_state["filtro_pag"] = "todos"
                 st.rerun()
                 
         with c3:
-            st.markdown(f'''<div class="card"><div class="metric-title">📈 Maior Pagamento</div><div class="metric-value">{maior_val}</div></div>''', unsafe_allow_html=True)
-            if st.button("🔍 Ver Maior Valor", use_container_width=True, key="b_maior_p"):
+            st.markdown('<div class="card"><div class="metric-title">Maior Pagamento</div><div class="metric-value">' + maior_val + '</div></div>', unsafe_allow_html=True)
+            if st.button("Ver Maior Valor", use_container_width=True, key="b_maior_p"):
                 st.session_state["filtro_pag"] = "maior"
                 st.rerun()
                 
         with c4:
-            st.markdown(f'''<div class="card"><div class="metric-title">📊 Média</div><div class="metric-value">{media_val}</div></div>''', unsafe_
+            st.markdown('<div class="card"><div class="metric-title">Média</div><div class="metric-value">' + media_val + '</div></div>', unsafe_allow_html=True)
+            if st.button("Acima da Média", use_container_width=True, key="b_media_p"):
+                st.session_state["filtro_pag"] = "acima_media"
+                st.rerun()
+
+        df_tabela_pag = df_f.copy()
+        if st.session_state["filtro_pag"] == "maior" and len(df_f) > 0:
+            max_v = df_f["Valor"].max()
+            df_tabela_pag = df_f[df_f["Valor"] == max_v]
+            st.info("ℹ️ A exibir apenas o registo com o Maior Pagamento.")
+        elif st.session_state["filtro_pag"] == "acima_media" and len(df_f) > 0:
+            med_v = df_f["Valor"].mean()
+            df_
