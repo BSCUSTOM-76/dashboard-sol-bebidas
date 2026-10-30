@@ -267,7 +267,7 @@ if menu_escolha == "Contas a Pagar":
         min_dp = df_f["Data_Obj"].min().date() if not df_f.empty else pd.to_datetime("01-01-2026").date()
         max_dp = df_f["Data_Obj"].max().date() if not df_f.empty else pd.to_datetime("31-12-2026").date()
         
-        periodo_p = st.sidebar.date_input("Intervalo de Datas", value=(min_dp, max_dp), key="date_range_pag")
+       periodo_p = st.sidebar.date_input("Intervalo de Datas", value=(min_dp, max_dp), format="DD/MM/YYYY", key="date_range_pag")
         
         if isinstance(periodo_p, tuple):
             if len(periodo_p) == 2:
@@ -371,7 +371,7 @@ elif menu_escolha == "Contas a Receber":
         min_dr = df_fr["Data_Obj"].min().date() if not df_fr.empty else pd.to_datetime("01-01-2026").date()
         max_dr = df_fr["Data_Obj"].max().date() if not df_fr.empty else pd.to_datetime("31-12-2026").date()
         
-        periodo_r = st.sidebar.date_input("Intervalo de Datas", value=(min_dr, max_dr), key="date_range_rec")
+        periodo_r = st.sidebar.date_input("Intervalo de Datas", value=(min_dr, max_dr), format="DD/MM/YYYY", key="date_range_rec")
         
         if isinstance(periodo_r, tuple):
             if len(periodo_r) == 2:
