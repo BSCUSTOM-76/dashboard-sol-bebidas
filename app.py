@@ -239,7 +239,7 @@ def processar_relatorio(pdf_path, tipo="pagamento"):
         
     df = pd.DataFrame(registos)
     df["Data_Obj"] = pd.to_datetime(df["Vencimento"], format="%d/%m/%Y", errors="coerce")
-    df = df[df["Data_Obj"] >= "01-01-2026"].dropna(subset=["Data_Obj"])
+    df = df[df["Data_Obj"] >= "2026-01-01"].dropna(subset=["Data_Obj"])
     df["Ano"] = df["Data_Obj"].dt.year
     df["Mes"] = df["Data_Obj"].dt.month
     return df, "Ok"
@@ -261,13 +261,13 @@ if menu_escolha == "Contas a Pagar":
         ano_sel = st.sidebar.selectbox("Ano (Pagar)", anos, key="ap1")
         df_f = df_p[df_p["Ano"] == ano_sel]
         
-        # Filtro por Período Personalizado (Data Inicial e Final) na Sidebar
+        # Filtro por Período Personalizado com formato DD/MM/AAAA
         st.sidebar.markdown("---")
         st.sidebar.subheader("📅 Período (Pagar)")
-        min_dp = df_f["Data_Obj"].min().date() if not df_f.empty else pd.to_datetime("01-01-2026").date()
-        max_dp = df_f["Data_Obj"].max().date() if not df_f.empty else pd.to_datetime("31-12-2026").date()
+        min_dp = df_f["Data_Obj"].min().date() if not df_f.empty else pd.to_datetime("2026-01-01").date()
+        max_dp = df_f["Data_Obj"].max().date() if not df_f.empty else pd.to_datetime("2026-12-31").date()
         
-       periodo_p = st.sidebar.date_input("Intervalo de Datas", value=(min_dp, max_dp), format="DD/MM/YYYY", key="date_range_pag")
+        periodo_p = st.sidebar.date_input("Intervalo de Datas", value=(min_dp, max_dp), format="DD/MM/YYYY", key="date_range_pag")
         
         if isinstance(periodo_p, tuple):
             if len(periodo_p) == 2:
@@ -365,11 +365,11 @@ elif menu_escolha == "Contas a Receber":
         ano_sel_r = st.sidebar.selectbox("Ano (Receber)", anos_r, key="ar2")
         df_fr = df_r[df_r["Ano"] == ano_sel_r]
         
-        # Filtro por Período Personalizado (Data Inicial e Final) na Sidebar
+        # Filtro por Período Personalizado com formato DD/MM/AAAA
         st.sidebar.markdown("---")
         st.sidebar.subheader("📅 Período (Receber)")
-        min_dr = df_fr["Data_Obj"].min().date() if not df_fr.empty else pd.to_datetime("01-01-2026").date()
-        max_dr = df_fr["Data_Obj"].max().date() if not df_fr.empty else pd.to_datetime("31-12-2026").date()
+        min_dr = df_fr["Data_Obj"].min().date() if not df_fr.empty else pd.to_datetime("2026-01-01").date()
+        max_dr = df_fr["Data_Obj"].max().date() if not df_fr.empty else pd.to_datetime("2026-12-31").date()
         
         periodo_r = st.sidebar.date_input("Intervalo de Datas", value=(min_dr, max_dr), format="DD/MM/YYYY", key="date_range_rec")
         
