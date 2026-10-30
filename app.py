@@ -338,22 +338,4 @@ if menu_escolha == "Contas a Pagar":
         st.subheader("📋 Lista Detalhada de Pagamentos")
         df_tb = df_tabela_pag[["Vencimento", "Entidade", "Valor"]].copy()
         df_tb.columns = ["Vencimento", "Fornecedor", "Valor"]
-        df_tb["Valor"] = df_tb["Valor"].apply(lambda x: f"R$ {x:,.2f}")
-        st.dataframe(df_tb, use_container_width=True, hide_index=True)
-        st.markdown('</div>', unsafe_allow_html=True)
-    else:
-        st.warning(f"⚠️ Pagamentos - Ficheiro: '{os.path.basename(caminho_pdf_pag)}' | Estado: {msg_p}")
-
-# ==========================================
-# MÓDULO 2: CONTAS A RECEBER
-# ==========================================
-elif menu_escolha == "Contas a Receber":
-    st.markdown('<div class="titulo-customizado">Gestão de Contas a Receber</div>', unsafe_allow_html=True)
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    df_r, msg_r = processar_relatorio(caminho_pdf_rec, "recebimento")
-    
-    if not df_r.empty:
-        anos_r = sorted(df_r["Ano"].unique().tolist())
-        ano_sel_r = st.sidebar.selectbox("Ano (Receber)", anos_r, key="ar2")
-        df_fr = df
+        df_tb["Valor"] = df_tb["Valor"].
