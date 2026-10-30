@@ -191,4 +191,5 @@ def processar_relatorio(pdf_path, tipo="pagamento"):
     for i, linha in enumerate(linhas_texto):
         linha_upper = linha.upper()
         if any(k in linha_upper for k in ["FORNECEDOR", "FORN:", "CLIENTE", "CLIFOR:"]):
-            partes = re.split(r'Fornecedor:|Forn:|Cliente:|Cl
+          padrao_split = r'Fornecedor:|Forn:|Cliente:|Clifor:'
+partes = re.split(padrao_split, linha, flags=re.IGNORECASE)
