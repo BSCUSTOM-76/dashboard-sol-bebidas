@@ -264,8 +264,8 @@ if menu_escolha == "Contas a Pagar":
         # Filtro por Período Personalizado (Data Inicial e Final) na Sidebar
         st.sidebar.markdown("---")
         st.sidebar.subheader("📅 Período (Pagar)")
-        min_dp = df_f["Data_Obj"].min().date() if not df_f.empty else pd.to_datetime("2026-01-01").date()
-        max_dp = df_f["Data_Obj"].max().date() if not df_f.empty else pd.to_datetime("2026-12-31").date()
+        min_dp = df_f["Data_Obj"].min().date() if not df_f.empty else pd.to_datetime("01-01-2026").date()
+        max_dp = df_f["Data_Obj"].max().date() if not df_f.empty else pd.to_datetime("31-12-2026").date()
         
         periodo_p = st.sidebar.date_input("Intervalo de Datas", value=(min_dp, max_dp), key="date_range_pag")
         
@@ -368,8 +368,8 @@ elif menu_escolha == "Contas a Receber":
         # Filtro por Período Personalizado (Data Inicial e Final) na Sidebar
         st.sidebar.markdown("---")
         st.sidebar.subheader("📅 Período (Receber)")
-        min_dr = df_fr["Data_Obj"].min().date() if not df_fr.empty else pd.to_datetime("2026-01-01").date()
-        max_dr = df_fr["Data_Obj"].max().date() if not df_fr.empty else pd.to_datetime("2026-12-31").date()
+        min_dr = df_fr["Data_Obj"].min().date() if not df_fr.empty else pd.to_datetime("01-01-2026").date()
+        max_dr = df_fr["Data_Obj"].max().date() if not df_fr.empty else pd.to_datetime("31-12-2026").date()
         
         periodo_r = st.sidebar.date_input("Intervalo de Datas", value=(min_dr, max_dr), key="date_range_rec")
         
