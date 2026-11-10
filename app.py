@@ -11,7 +11,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Estilização CSS personalizada para o Dark Mode, Amarelo Corporativo e Utilizador no Topo Direito
+# Estilização CSS personalizada para o Dark Mode e Amarelo Corporativo
 st.markdown("""
     <style>
     .main {
@@ -78,11 +78,11 @@ if "autenticado" not in st.session_state:
 if not st.session_state["autenticado"]:
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        st.markdown('''
+        st.markdown("""
             <div class="login-card">
                 <h2 style='color: #f0f6fc; text-align: center;'>🔐 Acesso Restrito</h2>
                 <p style='color: #8b949e; text-align: center;'>Sol Bebidas - Financeiro</p>
-        ''', unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
         
         usuario_input = st.text_input("Utilizador")
         senha_input = st.text_input("Palavra-passe", type="password")
@@ -107,11 +107,11 @@ if not st.session_state["autenticado"]:
 
 # --- EXIBIR UTILIZADOR NO CANTO SUPERIOR DIREITO ---
 usuario_logado = st.session_state.get('usuario_atual', 'Convidado')
-st.markdown(f'''
+st.markdown(f"""
     <div class="user-badge">
         <span>👤 Utilizador:</span> <b>{usuario_logado}</b>
     </div>
-''', unsafe_allow_html=True)
+""", unsafe_allow_html=True)
 
 # --- GESTÃO DE ESTADOS PARA FILTROS DOS CARTÕES ---
 if "filtro_pag" not in st.session_state:
@@ -149,15 +149,15 @@ fichs = os.listdir(pasta_dados)
 for f in fichs:
     f_upper = f.upper()
     f_path = os.path.join(pasta_dados, f)
-    if "RELATÓRIO PREVISÃO DE PAGAMENTO" in f_upper:
+    if "RELATÓRIO PREVISÃO DE PAGAMENTO" in f_upper or "PAGAMENTO" in f_upper:
         caminho_pdf_pag = f_path
-    if "REL. ANALÍTICO DE MOVIMENTAÇÃO CONTAS A RECEBER" in f_upper or "PREVISÃO_RECEBIMENTOS" in f_upper:
+    if "REL. ANALÍTICO DE MOVIMENTAÇÃO CONTAS A RECEBER" in f_upper or "RECEBER" in f_upper:
         caminho_pdf_rec = f_path
 
 def converter_valor(val_str):
     if not val_str:
         return 0.0
-    v = str(val_str).strip().replace(" ", "")
+    v = str(val_str).strip().replace("R$", "").replace(" ", "")
     if "," in v:
         v = v.replace(".", "").replace(",", ".")
     try:
@@ -239,13 +239,10 @@ def processar_relatorio(pdf_path, tipo="pagamento"):
         
     df = pd.DataFrame(registos)
     df["Data_Obj"] = pd.to_datetime(df["Vencimento"], format="%d/%m/%Y", errors="coerce")
-    df = df[df["Data_Obj"] >= "2026-01-01"].dropna(subset=["Data_Obj"])
+    df = df.dropna(subset=["Data_Obj"])
     df["Ano"] = df["Data_Obj"].dt.year
     df["Mes"] = df["Data_Obj"].dt.month
     return df, "Ok"
-
-meses_nomes = {1: "Janeiro", 2: "Fevereiro", 3: "Março", 4: "Abril", 5: "Maio", 6: "Junho",
-               7: "Julho", 8: "Agosto", 9: "Setembro", 10: "Outubro", 11: "Novembro", 12: "Dezembro"}
 
 # ==========================================
 # MÓDULO 1: CONTAS A PAGAR
@@ -261,7 +258,6 @@ if menu_escolha == "Contas a Pagar":
         ano_sel = st.sidebar.selectbox("Ano (Pagar)", anos, key="ap1")
         df_f = df_p[df_p["Ano"] == ano_sel]
         
-        # Filtro por Período Personalizado com formato DD/MM/AAAA
         st.sidebar.markdown("---")
         st.sidebar.subheader("📅 Período (Pagar)")
         min_dp = df_f["Data_Obj"].min().date() if not df_f.empty else pd.to_datetime("2026-01-01").date()
@@ -285,25 +281,25 @@ if menu_escolha == "Contas a Pagar":
         c1, c2, c3, c4 = st.columns(4)
         
         with c1:
-            st.markdown(f'''<div class="card"><div class="metric-title">💰 Total Previsto</div><div class="metric-value">{val_total}</div></div>''', unsafe_allow_html=True)
+            st.markdown(f'<div class="card"><div class="metric-title">💰 Total Previsto</div><div class="metric-value">{val_total}</div></div>', unsafe_allow_html=True)
             if st.button("🔄 Ver Todos", use_container_width=True, key="b_todos_p"):
                 st.session_state["filtro_pag"] = "todos"
                 st.rerun()
                 
         with c2:
-            st.markdown(f'''<div class="card"><div class="metric-title">📋 Registos</div><div class="metric-value">{qtd_reg}</div></div>''', unsafe_allow_html=True)
+            st.markdown(f'<div class="card"><div class="metric-title">📋 Registos</div><div class="metric-value">{qtd_reg}</div></div>', unsafe_allow_html=True)
             if st.button("📋 Ver Lista Completa", use_container_width=True, key="b_reg_p"):
                 st.session_state["filtro_pag"] = "todos"
                 st.rerun()
                 
         with c3:
-            st.markdown(f'''<div class="card"><div class="metric-title">📈 Maior Pagamento</div><div class="metric-value">{maior_val}</div></div>''', unsafe_allow_html=True)
+            st.markdown(f'<div class="card"><div class="metric-title">📈 Maior Pagamento</div><div class="metric-value">{maior_val}</div></div>', unsafe_allow_html=True)
             if st.button("🔍 Ver Maior Valor", use_container_width=True, key="b_maior_p"):
                 st.session_state["filtro_pag"] = "maior"
                 st.rerun()
                 
         with c4:
-            st.markdown(f'''<div class="card"><div class="metric-title">📊 Média</div><div class="metric-value">{media_val}</div></div>''', unsafe_allow_html=True)
+            st.markdown(f'<div class="card"><div class="metric-title">📊 Média</div><div class="metric-value">{media_val}</div></div>', unsafe_allow_html=True)
             if st.button("📊 Acima da Média", use_container_width=True, key="b_media_p"):
                 st.session_state["filtro_pag"] = "acima_media"
                 st.rerun()
@@ -345,11 +341,11 @@ if menu_escolha == "Contas a Pagar":
         st.subheader("📋 Lista Detalhada de Pagamentos")
         df_tb = df_tabela_pag[["Vencimento", "Entidade", "Valor"]].copy()
         df_tb.columns = ["Vencimento", "Fornecedor", "Valor"]
-        df_tb["Valor"] = df_tb["Valor"].apply()
+        df_tb["Valor"] = df_tb["Valor"].apply(lambda x: f"R$ {x:,.2f}")
         st.dataframe(df_tb, use_container_width=True, hide_index=True)
         st.markdown('</div>', unsafe_allow_html=True)
     else:
-        st.warning(f"⚠️ Pagamentos - Ficheiro: '{os.path.basename(caminho_pdf_pag)}' | Estado: {msg_p}")
+        st.warning(f"⚠️ Pagamentos - {msg_p}")
 
 # ==========================================
 # MÓDULO 2: CONTAS A RECEBER
@@ -365,7 +361,6 @@ elif menu_escolha == "Contas a Receber":
         ano_sel_r = st.sidebar.selectbox("Ano (Receber)", anos_r, key="ar2")
         df_fr = df_r[df_r["Ano"] == ano_sel_r]
         
-        # Filtro por Período Personalizado com formato DD/MM/AAAA
         st.sidebar.markdown("---")
         st.sidebar.subheader("📅 Período (Receber)")
         min_dr = df_fr["Data_Obj"].min().date() if not df_fr.empty else pd.to_datetime("2026-01-01").date()
@@ -389,25 +384,25 @@ elif menu_escolha == "Contas a Receber":
         cr1, cr2, cr3, cr4 = st.columns(4)
         
         with cr1:
-            st.markdown(f'''<div class="card"><div class="metric-title">💰 Total a Receber</div><div class="metric-value">{val_total_r}</div></div>''', unsafe_allow_html=True)
+            st.markdown(f'<div class="card"><div class="metric-title">💰 Total a Receber</div><div class="metric-value">{val_total_r}</div></div>', unsafe_allow_html=True)
             if st.button("🔄 Ver Todos", use_container_width=True, key="b_todos_r"):
                 st.session_state["filtro_rec"] = "todos"
                 st.rerun()
                 
         with cr2:
-            st.markdown(f'''<div class="card"><div class="metric-title">📋 Registos</div><div class="metric-value">{qtd_reg_r}</div></div>''', unsafe_allow_html=True)
+            st.markdown(f'<div class="card"><div class="metric-title">📋 Registos</div><div class="metric-value">{qtd_reg_r}</div></div>', unsafe_allow_html=True)
             if st.button("📋 Ver Lista Completa", use_container_width=True, key="b_reg_r"):
                 st.session_state["filtro_rec"] = "todos"
                 st.rerun()
                 
         with cr3:
-            st.markdown(f'''<div class="card"><div class="metric-title">📈 Maior Recebimento</div><div class="metric-value">{maior_val_r}</div></div>''', unsafe_allow_html=True)
+            st.markdown(f'<div class="card"><div class="metric-title">📈 Maior Recebimento</div><div class="metric-value">{maior_val_r}</div></div>', unsafe_allow_html=True)
             if st.button("🔍 Ver Maior Valor", use_container_width=True, key="b_maior_r"):
                 st.session_state["filtro_rec"] = "maior"
                 st.rerun()
                 
         with cr4:
-            st.markdown(f'''<div class="card"><div class="metric-title">📊 Média</div><div class="metric-value">{media_val_r}</div></div>''', unsafe_allow_html=True)
+            st.markdown(f'<div class="card"><div class="metric-title">📊 Média</div><div class="metric-value">{media_val_r}</div></div>', unsafe_allow_html=True)
             if st.button("📊 Acima da Média", use_container_width=True, key="b_media_r"):
                 st.session_state["filtro_rec"] = "acima_media"
                 st.rerun()
@@ -471,7 +466,7 @@ elif menu_escolha == "Contas a Receber":
         st.dataframe(df_tbr, use_container_width=True, hide_index=True)
         st.markdown('</div>', unsafe_allow_html=True)
     else:
-        st.warning(f"⚠️ Recebimentos - Ficheiro: '{os.path.basename(caminho_pdf_rec) if caminho_pdf_rec else 'Nenhum'}' | Estado: {msg_r}")
+        st.warning(f"⚠️ Recebimentos - {msg_r}")
 
 # --- ASSINATURA NO RODAPÉ ESQUERDO DA BARRA LATERAL ---
 with st.sidebar:
