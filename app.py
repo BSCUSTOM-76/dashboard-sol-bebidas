@@ -142,9 +142,9 @@ with st.sidebar:
     st.markdown("---")
     st.header("🔍 Filtros do Painel")
 
-# --- MAPEAMENTO SEGURO DOS FICHEIROS PDF ---
+# --- DETETAR AUTOMATICAMENTE OS FICHEIROS (PAGAR EM PDF, RECEBER EM EXCEL) ---
 caminho_pdf_pag = os.path.join(pasta_dados, "RELATÓRIO PREVISÃO DE PAGAMENTO.pdf")
-caminho_pdf_rec = os.path.join(pasta_dados, "REL. ANALÍTICO DE MOVIMENTAÇÃO CONTAS A RECEBER.pdf")
+caminho_excel_rec = os.path.join(pasta_dados, "Previsao_Recebimento_Analitico.xlsx")
 
 fichs = os.listdir(pasta_dados)
 for f in fichs:
@@ -152,13 +152,13 @@ for f in fichs:
     f_path = os.path.join(pasta_dados, f)
     if "PAGAMENTO" in f_upper and f_upper.endswith(".PDF"):
         caminho_pdf_pag = f_path
-    if ("RECEBER" in f_upper or "MOVIMENTAÇÃO" in f_upper or "MOVIMENTACAO" in f_upper or "ANALÍTICO" in f_upper or "ANALITICO" in f_upper) and f_upper.endswith(".PDF"):
-        caminho_pdf_rec = f_path
+    if ("PREVISAO" in f_upper or "RECEBIMENTO" in f_upper or "RECEBER" in f_upper) and (f_upper.endswith(".XLSX") or f_upper.endswith(".XLS")):
+        caminho_excel_rec = f_path
 
 def converter_valor(val_str):
     if not val_str:
         return 0.0
-    v = str(val_str).strip().replace(" ", "")
+    v = str(val_str).strip().replace("R$", "").replace(" ", "")
     if "," in v:
         v = v.replace(".", "").replace(",", ".")
     try:
@@ -166,10 +166,11 @@ def converter_valor(val_str):
     except:
         return 0.0
 
+# PROCESSADOR DE CONTAS A PAGAR (PDF)
 @st.cache_data(ttl=0)
-def processar_relatorio(pdf_path, tipo="pagamento"):
+def processar_relatorio_pdf(pdf_path):
     if not pdf_path or not os.path.exists(pdf_path):
-        return pd.DataFrame(), f"Ficheiro não encontrado: {pdf_path}"
+        return pd.DataFrame(), f"Ficheiro PDF não encontrado: {pdf_path}"
     
     linhas_texto = []
     try:
@@ -191,8 +192,6 @@ def processar_relatorio(pdf_path, tipo="pagamento"):
     
     for i, linha in enumerate(linhas_texto):
         linha_upper = linha.upper()
-        
-        # Ignorar linhas de cabeçalho global
         if any(termo in linha_upper for termo in ["TOTAL GERAL", "SAIBWEB", "EMISSÃO:", "PÁGINA:", "USUÁRIO:", "QTDE DOC"]):
             continue
             
@@ -202,11 +201,8 @@ def processar_relatorio(pdf_path, tipo="pagamento"):
                 entidade_atual = partes[1].strip()
             elif i + 1 < len(linhas_texto):
                 entidade_atual = linhas_texto[i+1].strip()
-        elif tipo == "pagamento" and " - " in linha and not padrao_data.search(linha):
+        elif " - " in linha and not padrao_data.search(linha):
             if len(linha) > 5 and not any(term in linha_upper for term in ["TOTAL", "SAIBWEB", "EMISSÃO"]):
-                entidade_atual = linha.strip()
-        elif tipo == "recebimento" and len(linha) > 3 and not padrao_data.search(linha) and not any(term in linha_upper for term in ["TOTAL", "SAIBWEB", "EMISSÃO", "PÁGINA"]):
-            if any(char.isdigit() for char in linha[:3]) and "-" in linha:
                 entidade_atual = linha.strip()
             
         datas = padrao_data.findall(linha)
@@ -214,7 +210,6 @@ def processar_relatorio(pdf_path, tipo="pagamento"):
             vencimento = datas[0]
             valores = re.findall(r'\b\d{1,3}(?:\.\d{3})*,\d{2}\b', linha)
             if valores:
-                # O Saldo exato no relatório analítico é estritamente o ÚLTIMO valor da linha
                 valor_float = converter_valor(valores[-1])
                 if valor_float > 0:
                     registos.append({
@@ -224,22 +219,7 @@ def processar_relatorio(pdf_path, tipo="pagamento"):
                     })
 
     if not registos:
-        for linha in linhas_texto:
-            datas = padrao_data.findall(linha)
-            if datas:
-                vencimento = datas[0]
-                valores = re.findall(r'\b\d{1,3}(?:\.\d{3})*,\d{2}\b', linha)
-                if valores:
-                    valor_float = converter_valor(valores[-1])
-                    if valor_float > 0:
-                        registos.append({
-                            "Vencimento": vencimento,
-                            "Entidade": "DIVERSOS",
-                            "Valor": valor_float
-                        })
-
-    if not registos:
-        return pd.DataFrame(), "Nenhum valor/data extraído"
+        return pd.DataFrame(), "Nenhum valor/data extraído do PDF"
         
     df = pd.DataFrame(registos)
     df["Data_Obj"] = pd.to_datetime(df["Vencimento"], format="%d/%m/%Y", errors="coerce")
@@ -248,6 +228,56 @@ def processar_relatorio(pdf_path, tipo="pagamento"):
     df["Mes"] = df["Data_Obj"].dt.month
     return df, "Ok"
 
+# PROCESSADOR DE CONTAS A RECEBER (EXCEL)
+@st.cache_data(ttl=0)
+def processar_relatorio_excel(excel_path):
+    if not excel_path or not os.path.exists(excel_path):
+        return pd.DataFrame(), f"Ficheiro Excel não encontrado: {excel_path}"
+    try:
+        df_raw = pd.read_excel(excel_path)
+        df_raw.columns = [str(c).strip().upper() for c in df_raw.columns]
+        
+        # Procurar colunas automaticamente
+        col_data = next((c for c in df_raw.columns if 'VENC' in c or 'DATA' in c), None)
+        col_ent = next((c for c in df_raw.columns if 'CLIENTE' in c or 'NOME' in c or 'ENTIDADE' in c or 'RAZÃO' in c or 'CLIFOR' in c), None)
+        col_val = next((c for c in df_raw.columns if 'SALDO' in c or 'VALOR' in c or 'LANÇ' in c), None)
+        
+        if not col_data or not col_val:
+            return pd.DataFrame(), f"Colunas essenciais não encontradas no Excel. Detetadas: {list(df_raw.columns)}"
+            
+        registos = []
+        for _, row in df_raw.iterrows():
+            data_raw = row[col_data]
+            vencimento_dt = pd.to_datetime(data_raw, errors='coerce')
+            if pd.isna(vencimento_dt):
+                continue
+            vencimento_str = vencimento_dt.strftime('%d/%m/%Y')
+            
+            entidade = str(row[col_ent]).strip() if col_ent and pd.notna(row[col_ent]) else "DIVERSOS"
+            if "TOTAL" in entidade.upper() or "SUBTOTAL" in entidade.upper() or entidade == "nan":
+                continue
+                
+            val_raw = row[col_val]
+            valor_float = converter_valor(val_raw)
+            if valor_float > 0:
+                registos.append({
+                    "Vencimento": vencimento_str,
+                    "Entidade": entidade,
+                    "Valor": valor_float
+                })
+                
+        if not registos:
+            return pd.DataFrame(), "Nenhum registo válido encontrado no Excel."
+            
+        df = pd.DataFrame(registos)
+        df["Data_Obj"] = pd.to_datetime(df["Vencimento"], format="%d/%m/%Y", errors="coerce")
+        df = df.dropna(subset=["Data_Obj"])
+        df["Ano"] = df["Data_Obj"].dt.year
+        df["Mes"] = df["Data_Obj"].dt.month
+        return df, "Ok"
+    except Exception as e:
+        return pd.DataFrame(), f"Erro ao ler Excel: {str(e)}"
+
 # ==========================================
 # MÓDULO 1: CONTAS A PAGAR
 # ==========================================
@@ -255,7 +285,7 @@ if menu_escolha == "Contas a Pagar":
     st.markdown('<div class="titulo-customizado">Gestão de Contas a Pagar</div>', unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
 
-    df_p, msg_p = processar_relatorio(caminho_pdf_pag, "pagamento")
+    df_p, msg_p = processar_relatorio_pdf(caminho_pdf_pag)
     
     if not df_p.empty:
         anos = sorted(df_p["Ano"].unique().tolist())
@@ -352,13 +382,13 @@ if menu_escolha == "Contas a Pagar":
         st.warning(f"⚠️ Pagamentos - {msg_p}")
 
 # ==========================================
-# MÓDULO 2: CONTAS A RECEBER
+# MÓDULO 2: CONTAS A RECEBER (EXCEL)
 # ==========================================
 elif menu_escolha == "Contas a Receber":
     st.markdown('<div class="titulo-customizado">Gestão de Contas a Receber</div>', unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
 
-    df_r, msg_r = processar_relatorio(caminho_pdf_rec, "recebimento")
+    df_r, msg_r = processar_relatorio_excel(caminho_excel_rec)
     
     if not df_r.empty:
         anos_r = sorted(df_r["Ano"].unique().tolist())
@@ -402,6 +432,7 @@ elif menu_escolha == "Contas a Receber":
         with cr3:
             st.markdown(f'<div class="card"><div class="metric-title">Maior Recebimento</div><div class="metric-value">{maior_val_r}</div></div>', unsafe_allow_html=True)
             if st.button("🔍 Ver Maior Valor", use_container_width=True, key="b_maior_r"):
+                st.session_state["filtro_rec"] = "filtro_rec"
                 st.session_state["filtro_rec"] = "maior"
                 st.rerun()
                 
