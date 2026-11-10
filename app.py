@@ -232,7 +232,14 @@ def processar_excel_receber(excel_path):
             continue
         val_data = vals[0]
         val_ent = vals[1] if len(vals) > 1 else "DIVERSOS"
-        val_num = vals[-1] if len(vals) > 2 else 0.0
+        
+        # Procura por valores numéricos válidos em todas as colunas da linha para garantir precisão total
+        valor_float = 0.0
+        for v_col in vals[2:]:
+            num_conv = converter_valor(v_col)
+            if num_conv > 0:
+                valor_float = num_conv
+                break # Pega o valor principal da linha
         
         if pd.isna(val_data):
             continue
@@ -247,18 +254,9 @@ def processar_excel_receber(excel_path):
             data_obj = dt_parse
             vencimento_str = data_obj.strftime("%d/%m/%Y")
             
-        try:
-            if isinstance(val_num, (int, float)):
-                valor_float = float(val_num)
-            else:
-                v_limpo = str(val_num).replace("R$", "").replace(" ", "").replace(".", "").replace(",", ".")
-                valor_float = float(v_limpo)
-        except:
-            valor_float = 0.0
-            
         entidade_str = str(val_ent).strip() if not pd.isna(val_ent) else "DIVERSOS"
         
-        if valor_float > 0 and entidade_str.upper() not in ["CLIENTE", "VALOR", "VENCIMENTO", "NOME", "TOTAL"]:
+        if valor_float > 0 and entidade_str.upper() not in ["CLIENTE", "VALOR", "VENCIMENTO", "NOME", "TOTAL", "TOTAL GE"]:
             registos.append({"Vencimento": vencimento_str, "Entidade": entidade_str, "Valor": valor_float, "Data_Obj": data_obj})
             
     if not registos:
