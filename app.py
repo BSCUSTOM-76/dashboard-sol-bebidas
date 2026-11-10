@@ -142,24 +142,19 @@ with st.sidebar:
     st.markdown("---")
     st.header("🔍 Filtros do Painel")
 
-# --- DETETAR AUTOMATICAMENTE QUALQUER PDF NA PASTA ---
-caminho_pdf_pag = ""
-caminho_pdf_rec = ""
+# --- DETETAR AUTOMATICAMENTE OS FICHEIROS PELO NOME EXATO ---
+caminho_pdf_pag = os.path.join(pasta_dados, "RELATÓRIO PREVISÃO DE PAGAMENTO.pdf")
+caminho_pdf_rec = os.path.join(pasta_dados, "REL. ANALÍTICO DE MOVIMENTAÇÃO CONTAS A RECEBER.pdf")
 
 fichs = os.listdir(pasta_dados)
 for f in fichs:
     f_upper = f.upper()
     f_path = os.path.join(pasta_dados, f)
-    if f_upper.endswith(".PDF"):
-        if "PAGAMENTO" in f_upper or "PAG" in f_upper:
-            caminho_pdf_pag = f_path
-        elif "RECEBER" in f_upper or "MOVIMENTAÇÃO" in f_upper or "MOVIMENTACAO" in f_upper or "ANALÍTICO" in f_upper or "ANALITICO" in f_upper:
+    if "RELATÓRIO PREVISÃO DE PAGAMENTO" in f_upper:
+        caminho_pdf_pag = f_path
+    if "ANALÍTICO DE MOVIMENTAÇÃO CONTAS A RECEBER" in f_upper or "ANALITICO DE MOVIMENTACAO" in f_upper:
+        if f_upper.endswith(".PDF"):
             caminho_pdf_rec = f_path
-
-if not caminho_pdf_rec:
-    for f in fichs:
-        if f.upper().endswith(".PDF") and f.upper() != os.path.basename(caminho_pdf_pag).upper():
-            caminho_pdf_rec = os.path.join(pasta_dados, f)
 
 def converter_valor(val_str):
     if not val_str:
@@ -201,4 +196,81 @@ def processar_relatorio(pdf_path, tipo="pagamento"):
         if any(termo in linha_upper for termo in ["TOTAL GERAL", "SAIBWEB", "EMISSÃO:", "PÁGINA:", "USUÁRIO:", "QTDE DOC"]):
             continue
             
-        if any(
+        if any(k in linha_upper for k in ["FORNECEDOR", "FORN:", "CLIENTE", "CLIFOR:"]):
+            partes = re.split(r'Fornecedor:|Forn:|Cliente:|Clifor:', linha, flags=re.IGNORECASE)
+            if len(partes) > 1 and partes[1].strip():
+                entidade_atual = partes[1].strip()
+            elif i + 1 < len(linhas_texto):
+                entidade_atual = linhas_texto[i+1].strip()
+        elif tipo == "pagamento" and " - " in linha and not padrao_data.search(linha):
+            if len(linha) > 5 and not any(term in linha_upper for term in ["TOTAL", "SAIBWEB", "EMISSÃO"]):
+                entidade_atual = linha.strip()
+        elif tipo == "recebimento" and len(linha) > 3 and not padrao_data.search(linha) and not any(term in linha_upper for term in ["TOTAL", "SAIBWEB", "EMISSÃO", "PÁGINA"]):
+            if any(char.isdigit() for char in linha[:3]) and "-" in linha:
+                entidade_atual = linha.strip()
+            
+        datas = padrao_data.findall(linha)
+        if datas:
+            vencimento = datas[0]
+            valores = re.findall(r"\b\d{1,3}(?:\.\d{3})*,\d{2}\b", linha)
+            if valores:
+                if len(valores) >= 2:
+                    valor_float = converter_valor(valores[-2])
+                else:
+                    valor_float = converter_valor(valores[0])
+                    
+                if valor_float > 0:
+                    registos.append({
+                        "Vencimento": vencimento,
+                        "Entidade": entidade_atual,
+                        "Valor": valor_float
+                    })
+
+    if not registos:
+        for linha in linhas_texto:
+            datas = padrao_data.findall(linha)
+            if datas:
+                vencimento = datas[0]
+                valores = re.findall(r"\b\d{1,3}(?:\.\d{3})*,\d{2}\b", linha)
+                if valores:
+                    valor_float = converter_valor(valores[0])
+                    if valor_float > 0:
+                        registos.append({
+                            "Vencimento": vencimento,
+                            "Entidade": "DIVERSOS",
+                            "Valor": valor_float
+                        })
+
+    if not registos:
+        return pd.DataFrame(), "Nenhum valor/data extraído"
+        
+    df = pd.DataFrame(registos)
+    df["Data_Obj"] = pd.to_datetime(df["Vencimento"], format="%d/%m/%Y", errors="coerce")
+    df = df.dropna(subset=["Data_Obj"])
+    df["Ano"] = df["Data_Obj"].dt.year
+    df["Mes"] = df["Data_Obj"].dt.month
+    return df, "Ok"
+
+# ==========================================
+# MÓDULO 1: CONTAS A PAGAR
+# ==========================================
+if menu_escolha == "Contas a Pagar":
+    st.markdown('<div class="titulo-customizado">Gestão de Contas a Pagar</div>', unsafe_allow_html=True)
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    df_p, msg_p = processar_relatorio(caminho_pdf_pag, "pagamento")
+    
+    if not df_p.empty:
+        anos = sorted(df_p["Ano"].unique().tolist())
+        ano_sel = st.sidebar.selectbox("Ano (Pagar)", anos, key="ap1")
+        df_f = df_p[df_p["Ano"] == ano_sel]
+        
+        st.sidebar.markdown("---")
+        st.sidebar.subheader("📅 Período (Pagar)")
+        min_dp = df_f["Data_Obj"].min().date() if not df_f.empty else pd.to_datetime("2026-01-01").date()
+        max_dp = df_f["Data_Obj"].max().date() if not df_f.empty else pd.to_datetime("2026-12-31").date()
+        
+        periodo_p = st.sidebar.date_input("Intervalo de Datas", value=(min_dp, max_dp), format="DD/MM/YYYY", key="date_range_pag")
+        
+        if isinstance(periodo_p, tuple):
+            if len(
