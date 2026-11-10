@@ -289,4 +289,4 @@ if menu_escolha == "Contas a Pagar":
                 st.rerun()
                 
         with c4:
-            st.markdown(f'''<div class="card"><div class="metric-title">📊 Média</div><div class="metric-value">{media_val}</div></div>''', unsafe_allow
+            st.markdown(f'<div class="card"><div class="metric-title">📊 Média</div><div class="metric-value">{media_val}</div></div>', unsafe_allow_html=True)
