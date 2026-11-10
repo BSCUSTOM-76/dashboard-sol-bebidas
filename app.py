@@ -237,4 +237,60 @@ def processar_relatorio_excel(excel_path):
         df_raw = pd.read_excel(excel_path)
         df_raw.columns = [str(c).strip().upper() for c in df_raw.columns]
         
-        col_data =
+        col_data = next((c for c in df_raw.columns if 'VENC' in c or 'DATA' in c), None)
+        col_ent = next((c for c in df_raw.columns if 'CLIENTE' in c or 'NOME' in c or 'ENTIDADE' in c or 'RAZÃO' in c or 'CLIFOR' in c), None)
+        col_val = next((c for c in df_raw.columns if 'SALDO' in c or 'VALOR' in c or 'LANÇ' in c), None)
+        
+        if not col_data or not col_val:
+            return pd.DataFrame(), f"Colunas essenciais não encontradas no Excel. Detetadas: {list(df_raw.columns)}"
+            
+        registos = []
+        for _, row in df_raw.iterrows():
+            data_raw = row[col_data]
+            vencimento_dt = pd.to_datetime(data_raw, errors='coerce')
+            if pd.isna(vencimento_dt):
+                continue
+            vencimento_str = vencimento_dt.strftime('%d/%m/%Y')
+            
+            entidade = str(row[col_ent]).strip() if col_ent and pd.notna(row[col_ent]) else "DIVERSOS"
+            if "TOTAL" in entidade.upper() or "SUBTOTAL" in entidade.upper() or entidade == "nan":
+                continue
+                
+            val_raw = row[col_val]
+            valor_float = converter_valor(val_raw)
+            if valor_float > 0:
+                registos.append({
+                    "Vencimento": vencimento_str,
+                    "Entidade": entidade,
+                    "Valor": valor_float
+                })
+                
+        if not registos:
+            return pd.DataFrame(), "Nenhum registo válido encontrado no Excel."
+            
+        df = pd.DataFrame(registos)
+        df["Data_Obj"] = pd.to_datetime(df["Vencimento"], format="%d/%m/%Y", errors="coerce")
+        df = df.dropna(subset=["Data_Obj"])
+        df["Ano"] = df["Data_Obj"].dt.year
+        df["Mes"] = df["Data_Obj"].dt.month
+        return df, "Ok"
+    except Exception as e:
+        return pd.DataFrame(), f"Erro ao ler Excel: {str(e)}"
+
+# ==========================================
+# MÓDULO 1: CONTAS A PAGAR
+# ==========================================
+if menu_escolha == "Contas a Pagar":
+    st.markdown('<div class="titulo-customizado">Gestão de Contas a Pagar</div>', unsafe_allow_html=True)
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    df_p, msg_p = processar_relatorio_pdf(caminho_pdf_pag)
+    
+    if not df_p.empty:
+        anos = sorted(df_p["Ano"].unique().tolist())
+        ano_sel = st.sidebar.selectbox("Ano (Pagar)", anos, key="ap1")
+        df_f = df_p[df_p["Ano"] == ano_sel]
+        
+        st.sidebar.markdown("---")
+        st.sidebar.subheader("📅 Período (Pagar)")
+        min_dp = df_f["Data_Obj"].
