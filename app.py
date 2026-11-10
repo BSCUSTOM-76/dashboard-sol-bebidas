@@ -375,7 +375,13 @@ elif menu_escolha == "Contas a Receber":
         
         if isinstance(periodo_r, tuple):
             if len(periodo_r) == 2:
-                d_ini_r, d_fim_r = periodo_r
+                st.markdown('<div class="card">', unsafe_allow_html=True)
+        st.subheader("Lista Detalhada de Recebimentos")
+        df_tbr = df_tabela_rec[["Vencimento", "Entidade", "Valor"]].copy()
+        df_tbr.columns = ["Vencimento", "Cliente", "Valor"]
+        df_tbr["Valor"] = df_tbr["Valor"].apply(lambda v: f"R$ {v:,.2f}")
+        st.dataframe(df_tbr, use_container_width=True, hide_index=True)
+        st.markdown('</div>', unsafe_allow_html=True)
                 df_fr = df_fr[(df_fr["Data_Obj"].dt.date >= d_ini_r) & (df_fr["Data_Obj"].dt.date <= d_fim_r)]
             elif len(periodo_r) == 1:
                 d_ini_r = periodo_r[0]
