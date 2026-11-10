@@ -143,7 +143,7 @@ with st.sidebar:
     st.header("🔍 Filtros do Painel")
 
 caminho_pdf_pag = os.path.join(pasta_dados, "RELATÓRIO PREVISÃO DE PAGAMENTO.pdf")
-caminho_pdf_rec = os.path.join(pasta_dados, "REL. ANALÍTICO DE MOVIMENTAÇÃO CONTAS A RECEBER.pdf")
+caminho_pdf_rec = os.path.join(pasta_dados, "REL. ANALÍTICO DE MOVIMENTAÇÃO CONTAS A RECEBER")
 
 fichs = os.listdir(pasta_dados)
 for f in fichs:
