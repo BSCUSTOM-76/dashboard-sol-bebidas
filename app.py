@@ -120,7 +120,7 @@ if "filtro_rec" not in st.session_state:
 
 pasta_dados = os.getcwd()
 
-# --- BARRA LATERAL (LOGO, MENU E FILTROS DINAMICOS) ---
+# --- BARRA LATERAL (LOGO, MENU E FILTROS) ---
 with st.sidebar:
     caminho_logo = os.path.join(pasta_dados, "logo.png")
     if os.path.exists(caminho_logo):
@@ -168,6 +168,17 @@ def converter_valor(val_str):
         return float(v)
     except:
         return 0.0
+
+def formatar_br(valor):
+    """Formata número para o padrão brasileiro: R$ 8.212.500,83"""
+    try:
+        val_float = float(valor)
+        s = f"{val_float:,.2f}"
+        # Substitui vírgula por marcador temporário, ponto por vírgula e marcador por ponto
+        s = s.replace(",", "X").replace(".", ",").replace("X", ".")
+        return f"R$ {s}"
+    except:
+        return "R$ 0,00"
 
 @st.cache_data
 def processar_relatorio(pdf_path):
@@ -225,21 +236,23 @@ def processar_excel_receber(excel_path):
     if df_raw.empty:
         return pd.DataFrame(), "Ficheiro Excel vazio"
         
+    colunas = list(df_raw.columns)
+    col_data = colunas[0]
+    col_entidade = colunas[1] if len(colunas) > 1 else colunas[0]
+    
+    # Identifica a coluna principal de valor (evitando colunas de saldo parcial/duplicadas)
+    col_valor = colunas[-1]
+    for c in colunas:
+        c_str = str(c).upper()
+        if any(k in c_str for k in ["VALOR", "VLR", "VL"]):
+            col_valor = c
+            break
+
     registos = []
     for _, row in df_raw.iterrows():
-        vals = list(row.values)
-        if len(vals) < 2:
-            continue
-        val_data = vals[0]
-        val_ent = vals[1] if len(vals) > 1 else "DIVERSOS"
-        
-        # Procura por valores numéricos válidos em todas as colunas da linha para garantir precisão total
-        valor_float = 0.0
-        for v_col in vals[2:]:
-            num_conv = converter_valor(v_col)
-            if num_conv > 0:
-                valor_float = num_conv
-                break # Pega o valor principal da linha
+        val_data = row[col_data]
+        val_ent = row[col_entidade] if col_entidade in df_raw.columns else "DIVERSOS"
+        val_num = row[col_valor] if col_valor in df_raw.columns else 0.0
         
         if pd.isna(val_data):
             continue
@@ -254,6 +267,7 @@ def processar_excel_receber(excel_path):
             data_obj = dt_parse
             vencimento_str = data_obj.strftime("%d/%m/%Y")
             
+        valor_float = converter_valor(val_num)
         entidade_str = str(val_ent).strip() if not pd.isna(val_ent) else "DIVERSOS"
         
         if valor_float > 0 and entidade_str.upper() not in ["CLIENTE", "VALOR", "VENCIMENTO", "NOME", "TOTAL", "TOTAL GE"]:
@@ -293,10 +307,10 @@ if menu_escolha == "Contas a Pagar":
             d_ini_p, d_fim_p = periodo_p
             df_f = df_f[(df_f["Data_Obj"].dt.date >= d_ini_p) & (df_f["Data_Obj"].dt.date <= d_fim_p)]
 
-        val_total = f"R$ {df_f['Valor'].sum():,.2f}"
+        val_total = formatar_br(df_f['Valor'].sum())
         qtd_reg = f"{len(df_f)}"
-        maior_val = f"R$ {df_f['Valor'].max() if len(df_f)>0 else 0:,.2f}"
-        media_val = f"R$ {df_f['Valor'].mean() if len(df_f)>0 else 0:,.2f}"
+        maior_val = formatar_br(df_f['Valor'].max() if len(df_f) > 0 else 0)
+        media_val = formatar_br(df_f['Valor'].mean() if len(df_f) > 0 else 0)
 
         c1, c2, c3, c4 = st.columns(4)
         with c1:
@@ -314,7 +328,7 @@ if menu_escolha == "Contas a Pagar":
         df_por_dia_p = df_f.groupby("Vencimento")["Valor"].agg(["sum", "count"]).reset_index()
         df_por_dia_p["DT_Aux"] = pd.to_datetime(df_por_dia_p["Vencimento"], format="%d/%m/%Y", errors="coerce")
         df_por_dia_p = df_por_dia_p.sort_values("DT_Aux")
-        opcoes_dias_p = ["Todos os Dias"] + [f"{row['Vencimento']} — Total: R$ {row['sum']:,.2f}" for _, row in df_por_dia_p.iterrows()]
+        opcoes_dias_p = ["Todos os Dias"] + [f"{row['Vencimento']} — Total: {formatar_br(row['sum'])}" for _, row in df_por_dia_p.iterrows()]
         dia_sel_p = st.selectbox("Selecione um dia específico para filtrar:", opcoes_dias_p, key="sel_dia_pag")
         st.markdown('</div>', unsafe_allow_html=True)
 
@@ -334,118 +348,3 @@ if menu_escolha == "Contas a Pagar":
         with col_g2:
             st.markdown('<div class="card">', unsafe_allow_html=True)
             st.subheader("Ranking Detalhado de Fornecedores")
-            df_forn_detalhe = df_f.groupby("Entidade")["Valor"].sum().nlargest(10).reset_index()
-            df_forn_detalhe["Valor"] = df_forn_detalhe["Valor"].map("R$ {:,.2f}".format)
-            st.dataframe(df_forn_detalhe, use_container_width=True, hide_index=True)
-            st.markdown('</div>', unsafe_allow_html=True)
-
-        st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.subheader("Evolucao Temporal de Pagamentos")
-        d_d = df_f.groupby("Vencimento")["Valor"].sum().reset_index()
-        d_d["DT"] = pd.to_datetime(d_d["Vencimento"], format="%d/%m/%Y")
-        st.line_chart(d_d.sort_values("DT").set_index("Vencimento")["Valor"])
-        st.markdown('</div>', unsafe_allow_html=True)
-
-        st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.subheader("Lista Detalhada de Pagamentos")
-        df_tb = df_tabela_pag[["Vencimento", "Entidade", "Valor"]].copy()
-        df_tb.columns = ["Vencimento", "Fornecedor", "Valor"]
-        df_tb["Valor"] = df_tb["Valor"].map("R$ {:,.2f}".format)
-        st.dataframe(df_tb, use_container_width=True, hide_index=True)
-        st.markdown('</div>', unsafe_allow_html=True)
-    else:
-        st.warning(f"⚠️ Pagamentos: {msg_p}")
-
-# ==========================================
-# MÓDULO 2: CONTAS A RECEBER
-# ==========================================
-elif menu_escolha == "Contas a Receber":
-    st.markdown('<div class="titulo-customizado">Gestao de Contas a Receber</div>', unsafe_allow_html=True)
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    df_r, msg_r = processar_excel_receber(caminho_excel_rec)
-    
-    if not df_r.empty:
-        anos_r = sorted(df_r["Ano"].unique().tolist())
-        ano_sel_r = st.sidebar.selectbox("Ano (Receber)", anos_r, key="ar2")
-        df_fr = df_r[df_r["Ano"] == ano_sel_r]
-        
-        st.sidebar.markdown("---")
-        st.sidebar.subheader("Periodo (Receber)")
-        min_dr = df_fr["Data_Obj"].min().date() if not df_fr.empty else pd.to_datetime("2026-01-01").date()
-        max_dr = df_fr["Data_Obj"].max().date() if not df_fr.empty else pd.to_datetime("2026-12-31").date()
-        
-        periodo_r = st.sidebar.date_input("Intervalo de Datas", value=(min_dr, max_dr), format="DD/MM/YYYY", key="date_range_rec")
-        
-        if isinstance(periodo_r, tuple) and len(periodo_r) == 2:
-            d_ini_r, d_fim_r = periodo_r
-            df_fr = df_fr[(df_fr["Data_Obj"].dt.date >= d_ini_r) & (df_fr["Data_Obj"].dt.date <= d_fim_r)]
-
-        val_total_r = f"R$ {df_fr['Valor'].sum():,.2f}"
-        qtd_reg_r = f"{len(df_fr)}"
-        maior_val_r = f"R$ {df_fr['Valor'].max() if len(df_fr)>0 else 0:,.2f}"
-        media_val_r = f"R$ {df_fr['Valor'].mean() if len(df_fr)>0 else 0:,.2f}"
-
-        cr1, cr2, cr3, cr4 = st.columns(4)
-        with cr1:
-            st.markdown(f'<div class="card"><div class="metric-title">Total a Receber</div><div class="metric-value">{val_total_r}</div></div>', unsafe_allow_html=True)
-        with cr2:
-            st.markdown(f'<div class="card"><div class="metric-title">Registos</div><div class="metric-value">{qtd_reg_r}</div></div>', unsafe_allow_html=True)
-        with cr3:
-            st.markdown(f'<div class="card"><div class="metric-title">Maior Recebimento</div><div class="metric-value">{maior_val_r}</div></div>', unsafe_allow_html=True)
-        with cr4:
-            st.markdown(f'<div class="card"><div class="metric-title">Media</div><div class="metric-value">{media_val_r}</div></div>', unsafe_allow_html=True)
-
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.subheader("Total e Filtro por Dia de Vencimento")
-        df_por_dia = df_fr.groupby("Vencimento")["Valor"].agg(["sum", "count"]).reset_index()
-        df_por_dia["DT_Aux"] = pd.to_datetime(df_por_dia["Vencimento"], format="%d/%m/%Y", errors="coerce")
-        df_por_dia = df_por_dia.sort_values("DT_Aux")
-        opcoes_dias = ["Todos os Dias"] + [f"{row['Vencimento']} — Total: R$ {row['sum']:,.2f}" for _, row in df_por_dia.iterrows()]
-        dia_selecionado = st.selectbox("Selecione um dia específico para filtrar:", opcoes_dias, key="sel_dia_rec")
-        st.markdown('</div>', unsafe_allow_html=True)
-
-        df_tabela_rec = df_fr.copy()
-        if dia_selecionado != "Todos os Dias":
-            data_escolhida = dia_selecionado.split(" — ")[0]
-            df_tabela_rec = df_fr[df_fr["Vencimento"] == data_escolhida]
-            st.info(f"A exibir apenas os recebimentos do dia {data_escolhida}.")
-
-        col_gr1, col_gr2 = st.columns(2)
-        with col_gr1:
-            st.markdown('<div class="card">', unsafe_allow_html=True)
-            st.subheader("Top 5 Clientes (Valores)")
-            df_top_cli = df_fr.groupby("Entidade")["Valor"].sum().nlargest(5)
-            st.bar_chart(df_top_cli)
-            st.markdown('</div>', unsafe_allow_html=True)
-        with col_gr2:
-            st.markdown('<div class="card">', unsafe_allow_html=True)
-            st.subheader("Ranking Detalhado de Clientes")
-            df_cli_detalhe = df_fr.groupby("Entidade")["Valor"].sum().nlargest(10).reset_index()
-            df_cli_detalhe["Valor"] = df_cli_detalhe["Valor"].map("R$ {:,.2f}".format)
-            st.dataframe(df_cli_detalhe, use_container_width=True, hide_index=True)
-            st.markdown('</div>', unsafe_allow_html=True)
-
-        st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.subheader("Evolucao Temporal de Recebimentos")
-        d_dr = df_fr.groupby("Vencimento")["Valor"].sum().reset_index()
-        d_dr["DT"] = pd.to_datetime(d_dr["Vencimento"], format="%d/%m/%Y")
-        st.line_chart(d_dr.sort_values("DT").set_index("Vencimento")["Valor"])
-        st.markdown('</div>', unsafe_allow_html=True)
-
-        st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.subheader("Lista Detalhada de Recebimentos")
-        df_tbr = df_tabela_rec[["Vencimento", "Entidade", "Valor"]].copy()
-        df_tbr.columns = ["Vencimento", "Cliente", "Valor"]
-        df_tbr["Valor"] = df_tbr["Valor"].map("R$ {:,.2f}".format)
-        st.dataframe(df_tbr, use_container_width=True, hide_index=True)
-        st.markdown('</div>', unsafe_allow_html=True)
-    else:
-        st.warning(f"⚠️ Recebimentos: {msg_r}")
-
-# --- ASSINATURA NO RODAPE ESQUERDO DA BARRA LATERAL ---
-with st.sidebar:
-    st.markdown("<br>" * 4, unsafe_allow_html=True)
-    st.markdown("<hr style='border-color: #30363d;'>", unsafe_allow_html=True)
-    st.markdown("<div style='text-align: left; color: #f2cc0d; font-size: 13px;'>Desenvolvedor:<br><b>Bruno Sabanelli</b></div>", unsafe_allow_html=True)
