@@ -375,8 +375,7 @@ elif menu_escolha == "Contas a Receber":
         
         if isinstance(periodo_r, tuple):
             if len(periodo_r) == 2:
-                d_ini_r, d_fim_r = periodo_r
-                df_fr = df_fr[(df_fr["Data_Obj"].dt.date >= d_ini_r) & (df_fr["Data_Obj"].dt.date <= d_fim_r)]
+            df_fr = df_fr[(df_fr["Data_Obj"].dt.date >= d_ini_r) & (df_fr["Data_Obj"].dt.date <= d_fim_r)]
             elif len(periodo_r) == 1:
                 d_ini_r = periodo_r[0]
                 df_fr = df_fr[df_fr["Data_Obj"].dt.date == d_ini_r]
