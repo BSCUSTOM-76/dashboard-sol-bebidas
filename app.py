@@ -143,7 +143,7 @@ with st.sidebar:
     st.header("🔍 Filtros do Painel")
 
 caminho_pdf_pag = os.path.join(pasta_dados, "RELATÓRIO PREVISÃO DE PAGAMENTO.pdf")
-caminho_pdf_rec = os.path.join(pasta_dados, "previsao_recebimentos.pdf")
+caminho_pdf_rec = os.path.join(pasta_dados, "REL. ANALÍTICO DE MOVIMENTAÇÃO CONTAS A RECEBER")
 
 fichs = os.listdir(pasta_dados)
 for f in fichs:
@@ -151,7 +151,7 @@ for f in fichs:
     f_path = os.path.join(pasta_dados, f)
     if "RELATÓRIO PREVISÃO DE PAGAMENTO" in f_upper:
         caminho_pdf_pag = f_path
-    if "PREVISAO_RECEBIMENTOS" in f_upper or "PREVISÃO_RECEBIMENTOS" in f_upper:
+    if "REL. ANALÍTICO DE MOVIMENTAÇÃO CONTAS A RECEBER" in f_upper or "PREVISÃO_RECEBIMENTOS" in f_upper:
         caminho_pdf_rec = f_path
 
 def converter_valor(val_str):
