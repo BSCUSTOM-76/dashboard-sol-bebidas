@@ -120,7 +120,7 @@ if "filtro_rec" not in st.session_state:
 
 pasta_dados = os.getcwd()
 
-# --- BARRA LATERAL ORGANIZADA (LOGO, MENU E FILTROS) ---
+# --- BARRA LATERAL (LOGO, MENU E FILTROS DINAMICOS) ---
 with st.sidebar:
     caminho_logo = os.path.join(pasta_dados, "logo.png")
     if os.path.exists(caminho_logo):
@@ -284,6 +284,17 @@ if menu_escolha == "Contas a Pagar":
         ano_sel = st.sidebar.selectbox("Ano (Pagar)", anos, key="ap1")
         df_f = df_p[df_p["Ano"] == ano_sel]
         
+        st.sidebar.markdown("---")
+        st.sidebar.subheader("Periodo (Pagar)")
+        min_dp = df_f["Data_Obj"].min().date() if not df_f.empty else pd.to_datetime("2026-01-01").date()
+        max_dp = df_f["Data_Obj"].max().date() if not df_f.empty else pd.to_datetime("2026-12-31").date()
+        
+        periodo_p = st.sidebar.date_input("Intervalo de Datas", value=(min_dp, max_dp), format="DD/MM/YYYY", key="date_range_pag")
+        
+        if isinstance(periodo_p, tuple) and len(periodo_p) == 2:
+            d_ini_p, d_fim_p = periodo_p
+            df_f = df_f[(df_f["Data_Obj"].dt.date >= d_ini_p) & (df_f["Data_Obj"].dt.date <= d_fim_p)]
+
         val_total = f"R$ {df_f['Valor'].sum():,.2f}"
         qtd_reg = f"{len(df_f)}"
         maior_val = f"R$ {df_f['Valor'].max() if len(df_f)>0 else 0:,.2f}"
@@ -301,8 +312,45 @@ if menu_escolha == "Contas a Pagar":
 
         st.markdown("<br>", unsafe_allow_html=True)
         st.markdown('<div class="card">', unsafe_allow_html=True)
+        st.subheader("Total e Filtro por Dia de Vencimento")
+        df_por_dia_p = df_f.groupby("Vencimento")["Valor"].agg(["sum", "count"]).reset_index()
+        df_por_dia_p["DT_Aux"] = pd.to_datetime(df_por_dia_p["Vencimento"], format="%d/%m/%Y", errors="coerce")
+        df_por_dia_p = df_por_dia_p.sort_values("DT_Aux")
+        opcoes_dias_p = ["Todos os Dias"] + [f"{row['Vencimento']} — Total: R$ {row['sum']:,.2f}" for _, row in df_por_dia_p.iterrows()]
+        dia_sel_p = st.selectbox("Selecione um dia específico para filtrar:", opcoes_dias_p, key="sel_dia_pag")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        df_tabela_pag = df_f.copy()
+        if dia_sel_p != "Todos os Dias":
+            data_escolhida_p = dia_sel_p.split(" — ")[0]
+            df_tabela_pag = df_f[df_f["Vencimento"] == data_escolhida_p]
+            st.info(f"A exibir apenas os pagamentos do dia {data_escolhida_p}.")
+
+        col_g1, col_g2 = st.columns(2)
+        with col_g1:
+            st.markdown('<div class="card">', unsafe_allow_html=True)
+            st.subheader("Top 5 Fornecedores (Valores)")
+            df_top = df_f.groupby("Entidade")["Valor"].sum().nlargest(5)
+            st.bar_chart(df_top)
+            st.markdown('</div>', unsafe_allow_html=True)
+        with col_g2:
+            st.markdown('<div class="card">', unsafe_allow_html=True)
+            st.subheader("Ranking Detalhado de Fornecedores")
+            df_forn_detalhe = df_f.groupby("Entidade")["Valor"].sum().nlargest(10).reset_index()
+            df_forn_detalhe["Valor"] = df_forn_detalhe["Valor"].map("R$ {:,.2f}".format)
+            st.dataframe(df_forn_detalhe, use_container_width=True, hide_index=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+
+        st.markdown('<div class="card">', unsafe_allow_html=True)
+        st.subheader("Evolucao Temporal de Pagamentos")
+        d_d = df_f.groupby("Vencimento")["Valor"].sum().reset_index()
+        d_d["DT"] = pd.to_datetime(d_d["Vencimento"], format="%d/%m/%Y")
+        st.line_chart(d_d.sort_values("DT").set_index("Vencimento")["Valor"])
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        st.markdown('<div class="card">', unsafe_allow_html=True)
         st.subheader("Lista Detalhada de Pagamentos")
-        df_tb = df_f[["Vencimento", "Entidade", "Valor"]].copy()
+        df_tb = df_tabela_pag[["Vencimento", "Entidade", "Valor"]].copy()
         df_tb.columns = ["Vencimento", "Fornecedor", "Valor"]
         df_tb["Valor"] = df_tb["Valor"].map("R$ {:,.2f}".format)
         st.dataframe(df_tb, use_container_width=True, hide_index=True)
@@ -324,6 +372,17 @@ elif menu_escolha == "Contas a Receber":
         ano_sel_r = st.sidebar.selectbox("Ano (Receber)", anos_r, key="ar2")
         df_fr = df_r[df_r["Ano"] == ano_sel_r]
         
+        st.sidebar.markdown("---")
+        st.sidebar.subheader("Periodo (Receber)")
+        min_dr = df_fr["Data_Obj"].min().date() if not df_fr.empty else pd.to_datetime("2026-01-01").date()
+        max_dr = df_fr["Data_Obj"].max().date() if not df_fr.empty else pd.to_datetime("2026-12-31").date()
+        
+        periodo_r = st.sidebar.date_input("Intervalo de Datas", value=(min_dr, max_dr), format="DD/MM/YYYY", key="date_range_rec")
+        
+        if isinstance(periodo_r, tuple) and len(periodo_r) == 2:
+            d_ini_r, d_fim_r = periodo_r
+            df_fr = df_fr[(df_fr["Data_Obj"].dt.date >= d_ini_r) & (df_fr["Data_Obj"].dt.date <= d_fim_r)]
+
         val_total_r = f"R$ {df_fr['Valor'].sum():,.2f}"
         qtd_reg_r = f"{len(df_fr)}"
         maior_val_r = f"R$ {df_fr['Valor'].max() if len(df_fr)>0 else 0:,.2f}"
@@ -341,8 +400,45 @@ elif menu_escolha == "Contas a Receber":
 
         st.markdown("<br>", unsafe_allow_html=True)
         st.markdown('<div class="card">', unsafe_allow_html=True)
+        st.subheader("Total e Filtro por Dia de Vencimento")
+        df_por_dia = df_fr.groupby("Vencimento")["Valor"].agg(["sum", "count"]).reset_index()
+        df_por_dia["DT_Aux"] = pd.to_datetime(df_por_dia["Vencimento"], format="%d/%m/%Y", errors="coerce")
+        df_por_dia = df_por_dia.sort_values("DT_Aux")
+        opcoes_dias = ["Todos os Dias"] + [f"{row['Vencimento']} — Total: R$ {row['sum']:,.2f}" for _, row in df_por_dia.iterrows()]
+        dia_selecionado = st.selectbox("Selecione um dia específico para filtrar:", opcoes_dias, key="sel_dia_rec")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        df_tabela_rec = df_fr.copy()
+        if dia_selecionado != "Todos os Dias":
+            data_escolhida = dia_selecionado.split(" — ")[0]
+            df_tabela_rec = df_fr[df_fr["Vencimento"] == data_escolhida]
+            st.info(f"A exibir apenas os recebimentos do dia {data_escolhida}.")
+
+        col_gr1, col_gr2 = st.columns(2)
+        with col_gr1:
+            st.markdown('<div class="card">', unsafe_allow_html=True)
+            st.subheader("Top 5 Clientes (Valores)")
+            df_top_cli = df_fr.groupby("Entidade")["Valor"].sum().nlargest(5)
+            st.bar_chart(df_top_cli)
+            st.markdown('</div>', unsafe_allow_html=True)
+        with col_gr2:
+            st.markdown('<div class="card">', unsafe_allow_html=True)
+            st.subheader("Ranking Detalhado de Clientes")
+            df_cli_detalhe = df_fr.groupby("Entidade")["Valor"].sum().nlargest(10).reset_index()
+            df_cli_detalhe["Valor"] = df_cli_detalhe["Valor"].map("R$ {:,.2f}".format)
+            st.dataframe(df_cli_detalhe, use_container_width=True, hide_index=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+
+        st.markdown('<div class="card">', unsafe_allow_html=True)
+        st.subheader("Evolucao Temporal de Recebimentos")
+        d_dr = df_fr.groupby("Vencimento")["Valor"].sum().reset_index()
+        d_dr["DT"] = pd.to_datetime(d_dr["Vencimento"], format="%d/%m/%Y")
+        st.line_chart(d_dr.sort_values("DT").set_index("Vencimento")["Valor"])
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        st.markdown('<div class="card">', unsafe_allow_html=True)
         st.subheader("Lista Detalhada de Recebimentos")
-        df_tbr = df_fr[["Vencimento", "Entidade", "Valor"]].copy()
+        df_tbr = df_tabela_rec[["Vencimento", "Entidade", "Valor"]].copy()
         df_tbr.columns = ["Vencimento", "Cliente", "Valor"]
         df_tbr["Valor"] = df_tbr["Valor"].map("R$ {:,.2f}".format)
         st.dataframe(df_tbr, use_container_width=True, hide_index=True)
