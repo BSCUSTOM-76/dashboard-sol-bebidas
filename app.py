@@ -143,7 +143,7 @@ with st.sidebar:
     st.header("🔍 Filtros do Painel")
 
 caminho_pdf_pag = os.path.join(pasta_dados, "RELATÓRIO PREVISÃO DE PAGAMENTO.pdf")
-caminho_pdf_rec = os.path.join(pasta_dados, "previsao_recebimentos.pdf")
+caminho_pdf_rec = os.path.join(pasta_dados, "REL. ANALÍTICO DE MOVIMENTAÇÃO CONTAS A RECEBER.pdf")
 
 fichs = os.listdir(pasta_dados)
 for f in fichs:
@@ -151,7 +151,7 @@ for f in fichs:
     f_path = os.path.join(pasta_dados, f)
     if "RELATÓRIO PREVISÃO DE PAGAMENTO" in f_upper:
         caminho_pdf_pag = f_path
-    if "PREVISAO_RECEBIMENTOS" in f_upper or "PREVISÃO_RECEBIMENTOS" in f_upper:
+    if "REL. ANALÍTICO DE MOVIMENTAÇÃO CONTAS A RECEBER" in f_upper or "PREVISÃO_RECEBIMENTOS" in f_upper:
         caminho_pdf_rec = f_path
 
 def converter_valor(val_str):
@@ -375,13 +375,7 @@ elif menu_escolha == "Contas a Receber":
         
         if isinstance(periodo_r, tuple):
             if len(periodo_r) == 2:
-                st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.subheader("Lista Detalhada de Recebimentos")
-        df_tbr = df_tabela_rec[["Vencimento", "Entidade", "Valor"]].copy()
-        df_tbr.columns = ["Vencimento", "Cliente", "Valor"]
-        df_tbr["Valor"] = df_tbr["Valor"].apply(lambda v: f"R$ {v:,.2f}")
-        st.dataframe(df_tbr, use_container_width=True, hide_index=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+                d_ini_r, d_fim_r = periodo_r
                 df_fr = df_fr[(df_fr["Data_Obj"].dt.date >= d_ini_r) & (df_fr["Data_Obj"].dt.date <= d_fim_r)]
             elif len(periodo_r) == 1:
                 d_ini_r = periodo_r[0]
