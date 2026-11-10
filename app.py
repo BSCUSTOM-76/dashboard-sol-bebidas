@@ -191,7 +191,6 @@ def processar_relatorio(pdf_path, tipo="pagamento"):
     for i, linha in enumerate(linhas_texto):
         linha_upper = linha.upper()
         
-        # Ignorar apenas cabeçalhos do sistema
         if any(termo in linha_upper for termo in ["SAIBWEB", "EMISSÃO:", "PÁGINA:", "USUÁRIO:"]):
             continue
             
@@ -286,25 +285,25 @@ if menu_escolha == "Contas a Pagar":
         c1, c2, c3, c4 = st.columns(4)
         
         with c1:
-            st.markdown(f'<div class="card"><div class="metric-title">💰 Total Previsto</div><div class="metric-value">{val_total}</div></div>', unsafe_allow_html=True)
+            st.markdown('<div class="card"><div class="metric-title">Total Previsto</div><div class="metric-value">' + val_total + '</div></div>', unsafe_allow_html=True)
             if st.button("🔄 Ver Todos", use_container_width=True, key="b_todos_p"):
                 st.session_state["filtro_pag"] = "todos"
                 st.rerun()
                 
         with c2:
-            st.markdown(f'<div class="card"><div class="metric-title">📋 Registos</div><div class="metric-value">{qtd_reg}</div></div>', unsafe_allow_html=True)
+            st.markdown('<div class="card"><div class="metric-title">Registos</div><div class="metric-value">' + qtd_reg + '</div></div>', unsafe_allow_html=True)
             if st.button("📋 Ver Lista Completa", use_container_width=True, key="b_reg_p"):
                 st.session_state["filtro_pag"] = "todos"
                 st.rerun()
                 
         with c3:
-            st.markdown(f'<div class="card"><div class="metric-title">📈 Maior Pagamento</div><div class="metric-value">{maior_val}</div></div>', unsafe_allow_html=True)
+            st.markdown('<div class="card"><div class="metric-title">Maior Pagamento</div><div class="metric-value">' + maior_val + '</div></div>', unsafe_allow_html=True)
             if st.button("🔍 Ver Maior Valor", use_container_width=True, key="b_maior_p"):
                 st.session_state["filtro_pag"] = "maior"
                 st.rerun()
                 
         with c4:
-            st.markdown(f'<div class="card"><div class="metric-title">📊 Média</div><div class="metric-value">{media_val}</div></div>', unsafe_allow_html=True)
+            st.markdown('<div class="card"><div class="metric-title">Média</div><div class="metric-value">' + media_val + '</div></div>', unsafe_allow_html=True)
             if st.button("📊 Acima da Média", use_container_width=True, key="b_media_p"):
                 st.session_state["filtro_pag"] = "acima_media"
                 st.rerun()
@@ -331,74 +330,4 @@ if menu_escolha == "Contas a Pagar":
             st.markdown('<div class="card">', unsafe_allow_html=True)
             st.subheader("Ranking Detalhado de Fornecedores")
             df_forn_detalhe = df_f.groupby("Entidade")["Valor"].sum().nlargest(10).reset_index()
-            df_forn_detalhe["Valor"] = df_forn_detalhe["Valor"].apply(lambda x: f"R$ {x:,.2f}")
-            st.dataframe(df_forn_detalhe, use_container_width=True, hide_index=True)
-            st.markdown('</div>', unsafe_allow_html=True)
-
-        st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.subheader("Evolução Temporal de Pagamentos")
-        d_d = df_f.groupby("Vencimento")["Valor"].sum().reset_index()
-        d_d["DT"] = pd.to_datetime(d_d["Vencimento"], format="%d/%m/%Y")
-        st.line_chart(d_d.sort_values("DT").set_index("Vencimento")["Valor"])
-        st.markdown('</div>', unsafe_allow_html=True)
-
-        st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.subheader("Lista Detalhada de Pagamentos")
-        df_tb = df_tabela_pag[["Vencimento", "Entidade", "Valor"]].copy()
-        df_tb.columns = ["Vencimento", "Fornecedor", "Valor"]
-        df_tb["Valor"] = df_tb["Valor"].apply(lambda x: f"R$ {x:,.2f}")
-        st.dataframe(df_tb, use_container_width=True, hide_index=True)
-        st.markdown('</div>', unsafe_allow_html=True)
-    else:
-        st.warning(f"⚠️ Pagamentos - Ficheiro: '{os.path.basename(caminho_pdf_pag)}' | Estado: {msg_p}")
-
-# ==========================================
-# MÓDULO 2: CONTAS A RECEBER
-# ==========================================
-elif menu_escolha == "Contas a Receber":
-    st.markdown('<div class="titulo-customizado">Gestão de Contas a Receber</div>', unsafe_allow_html=True)
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    df_r, msg_r = processar_relatorio(caminho_pdf_rec, "recebimento")
-    
-    if not df_r.empty:
-        anos_r = sorted(df_r["Ano"].unique().tolist())
-        ano_sel_r = st.sidebar.selectbox("Ano (Receber)", anos_r, key="ar2")
-        df_fr = df_r[df_r["Ano"] == ano_sel_r]
-        
-        st.sidebar.markdown("---")
-        st.sidebar.subheader("📅 Período (Receber)")
-        min_dr = df_fr["Data_Obj"].min().date() if not df_fr.empty else pd.to_datetime("2026-01-01").date()
-        max_dr = df_fr["Data_Obj"].max().date() if not df_fr.empty else pd.to_datetime("2026-12-31").date()
-        
-        periodo_r = st.sidebar.date_input("Intervalo de Datas", value=(min_dr, max_dr), format="DD/MM/YYYY", key="date_range_rec")
-        
-        if isinstance(periodo_r, tuple):
-            if len(periodo_r) == 2:
-                d_ini_r, d_fim_r = periodo_r
-                df_fr = df_fr[(df_fr["Data_Obj"].dt.date >= d_ini_r) & (df_fr["Data_Obj"].dt.date <= d_fim_r)]
-            elif len(periodo_r) == 1:
-                d_ini_r = periodo_r[0]
-                df_fr = df_fr[df_fr["Data_Obj"].dt.date == d_ini_r]
-
-        val_total_r = f"R$ {df_fr['Valor'].sum():,.2f}"
-        qtd_reg_r = f"{len(df_fr)}"
-        maior_val_r = f"R$ {df_fr['Valor'].max() if len(df_fr)>0 else 0:,.2f}"
-        media_val_r = f"R$ {df_fr['Valor'].mean() if len(df_fr)>0 else 0:,.2f}"
-
-        cr1, cr2, cr3, cr4 = st.columns(4)
-        
-        with cr1:
-            st.markdown(f'<div class="card"><div class="metric-title">💰 Total a Receber</div><div class="metric-value">{val_total_r}</div></div>', unsafe_allow_html=True)
-            if st.button("🔄 Ver Todos", use_container_width=True, key="b_todos_r"):
-                st.session_state["filtro_rec"] = "todos"
-                st.rerun()
-                
-        with cr2:
-            st.markdown(f'<div class="card"><div class="metric-title">📋 Registos</div><div class="metric-value">{qtd_reg_r}</div></div>', unsafe_allow_html=True)
-            if st.button("📋 Ver Lista Completa", use_container_width=True, key="b_reg_r"):
-                st.session_state["filtro_rec"] = "todos"
-                st.rerun()
-                
-        with cr3:
-            st.markdown(f'<div class="card"><div class="metric-title">📈 Maior Recebimento</div><div class="metric
+            df_forn_detalhe["Valor"] = df_forn_det
