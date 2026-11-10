@@ -142,23 +142,17 @@ with st.sidebar:
     st.markdown("---")
     st.header("Filtros do Painel")
 
-# Identificação automática de ficheiros na pasta atual do repositório
-caminho_pdf_pag = None
-caminho_excel_rec = None
+caminho_pdf_pag = os.path.join(pasta_dados, "RELATÓRIO PREVISÃO DE PAGAMENTO.pdf")
+caminho_excel_rec = os.path.join(pasta_dados, "Previsao_Recebimento_Analitico.xlsx")
 
 fichs = os.listdir(pasta_dados)
 for f in fichs:
     f_upper = f.upper()
     f_path = os.path.join(pasta_dados, f)
-    if "PAGAMENTO" in f_upper and f_upper.endswith(".PDF"):
+    if "PAGAMENTO" in f_upper:
         caminho_pdf_pag = f_path
-    if ("RECEBIMENTO" in f_upper or "ANALITICO" in f_upper) and f_upper.endswith((".XLSX", ".XLS")):
+    if "RECEBIMENTO" in f_upper and f_upper.endswith((".XLSX", ".XLS")):
         caminho_excel_rec = f_path
-
-if not caminho_pdf_pag:
-    caminho_pdf_pag = os.path.join(pasta_dados, "RELATÓRIO PREVISÃO DE PAGAMENTO.pdf")
-if not caminho_excel_rec:
-    caminho_excel_rec = os.path.join(pasta_dados, "Previsao_Recebimento_Analitico.xlsx")
 
 def converter_valor(val_str):
     if not val_str:
@@ -176,9 +170,9 @@ def converter_valor(val_str):
         return 0.0
 
 @st.cache_data
-def processar_relatorio(pdf_path):
+def processar_relatorio(pdf_path, tipo="pagamento"):
     if not pdf_path or not os.path.exists(pdf_path):
-        return pd.DataFrame(), f"Ficheiro PDF não encontrado no caminho: {pdf_path}"
+        return pd.DataFrame(), "Ficheiro não encontrado"
     
     linhas_texto = []
     try:
@@ -189,7 +183,7 @@ def processar_relatorio(pdf_path):
                     for l in t.split("\n"):
                         linhas_texto.append(l.strip())
     except Exception as e:
-        return pd.DataFrame(), f"Erro ao ler PDF: {str(e)}"
+        return pd.DataFrame(), str(e)
                     
     if not linhas_texto:
         return pd.DataFrame(), "PDF vazio ou ilegível"
@@ -206,7 +200,7 @@ def processar_relatorio(pdf_path):
                 entidade_atual = partes[1].strip()
             elif i + 1 < len(linhas_texto):
                 entidade_atual = linhas_texto[i+1].strip()
-        elif " - " in linha and not padrao_data.search(linha):
+        elif tipo == "pagamento" and " - " in linha and not padrao_data.search(linha):
             if len(linha) > 5 and not any(term in linha_upper for term in ["TOTAL", "SAIBWEB", "EMISSAO"]):
                 entidade_atual = linha.strip()
 
@@ -242,7 +236,7 @@ def processar_relatorio(pdf_path):
                         })
 
     if not registos:
-        return pd.DataFrame(), "Nenhum valor extraído do PDF"
+        return pd.DataFrame(), "Nenhum valor extraído"
         
     df = pd.DataFrame(registos)
     df["Data_Obj"] = pd.to_datetime(df["Vencimento"], format="%d/%m/%Y", errors="coerce")
@@ -254,7 +248,7 @@ def processar_relatorio(pdf_path):
 @st.cache_data
 def processar_excel_receber(excel_path):
     if not excel_path or not os.path.exists(excel_path):
-        return pd.DataFrame(), f"Ficheiro Excel não encontrado no caminho: {excel_path}"
+        return pd.DataFrame(), f"Ficheiro Excel não encontrado em: {excel_path}"
     try:
         df_raw = pd.read_excel(excel_path, header=0)
     except Exception as e:
@@ -265,7 +259,9 @@ def processar_excel_receber(excel_path):
     
     df_raw.columns = [str(c).strip().upper() for c in df_raw.columns]
     
-    col_data, col_entidade, col_valor = None, None, None
+    col_data = None
+    col_entidade = None
+    col_valor = None
     
     for col in df_raw.columns:
         if any(k in col for k in ["VENCIMENTO", "DATA", "VCTO"]):
@@ -340,4 +336,71 @@ def processar_excel_receber(excel_path):
 # ==========================================
 if menu_escolha == "Contas a Pagar":
     st.markdown('<div class="titulo-customizado">Gestao de Contas a Pagar</div>', unsafe_allow_html=True)
-    st.markdown("<br>", unsafe_allow_html
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    df_p, msg_p = processar_relatorio(caminho_pdf_pag, "pagamento")
+    
+    if not df_p.empty:
+        anos = sorted(df_p["Ano"].unique().tolist())
+        ano_sel = st.sidebar.selectbox("Ano (Pagar)", anos, key="ap1")
+        df_f = df_p[df_p["Ano"] == ano_sel]
+        
+        st.sidebar.markdown("---")
+        st.sidebar.subheader("Periodo (Pagar)")
+        min_dp = df_f["Data_Obj"].min().date() if not df_f.empty else pd.to_datetime("2026-01-01").date()
+        max_dp = df_f["Data_Obj"].max().date() if not df_f.empty else pd.to_datetime("2026-12-31").date()
+        
+        periodo_p = st.sidebar.date_input("Intervalo de Datas", value=(min_dp, max_dp), format="DD/MM/YYYY", key="date_range_pag")
+        
+        if isinstance(periodo_p, tuple):
+            if len(periodo_p) == 2:
+                d_ini_p, d_fim_p = periodo_p
+                df_f = df_f[(df_f["Data_Obj"].dt.date >= d_ini_p) & (df_f["Data_Obj"].dt.date <= d_fim_p)]
+            elif len(periodo_p) == 1:
+                d_ini_p = periodo_p[0]
+                df_f = df_f[df_f["Data_Obj"].dt.date == d_ini_p]
+
+        val_total = f"R$ {df_f['Valor'].sum():,.2f}"
+        qtd_reg = f"{len(df_f)}"
+        maior_val = f"R$ {df_f['Valor'].max() if len(df_f)>0 else 0:,.2f}"
+        media_val = f"R$ {df_f['Valor'].mean() if len(df_f)>0 else 0:,.2f}"
+
+        c1, c2, c3, c4 = st.columns(4)
+        
+        with c1:
+            st.markdown(f'<div class="card"><div class="metric-title">Total Previsto</div><div class="metric-value">{val_total}</div></div>', unsafe_allow_html=True)
+            if st.button("Ver Todos", use_container_width=True, key="b_todos_p"):
+                st.session_state["filtro_pag"] = "todos"
+                st.rerun()
+                
+        with c2:
+            st.markdown(f'<div class="card"><div class="metric-title">Registos</div><div class="metric-value">{qtd_reg}</div></div>', unsafe_allow_html=True)
+            if st.button("Ver Lista Completa", use_container_width=True, key="b_reg_p"):
+                st.session_state["filtro_pag"] = "todos"
+                st.rerun()
+                
+        with c3:
+            st.markdown(f'<div class="card"><div class="metric-title">Maior Pagamento</div><div class="metric-value">{maior_val}</div></div>', unsafe_allow_html=True)
+            if st.button("Ver Maior Valor", use_container_width=True, key="b_maior_p"):
+                st.session_state["filtro_pag"] = "maior"
+                st.rerun()
+                
+        with c4:
+            st.markdown(f'<div class="card"><div class="metric-title">Media</div><div class="metric-value">{media_val}</div></div>', unsafe_allow_html=True)
+            if st.button("Acima da Media", use_container_width=True, key="b_media_p"):
+                st.session_state["filtro_pag"] = "acima_media"
+                st.rerun()
+
+        df_tabela_pag = df_f.copy()
+        if st.session_state["filtro_pag"] == "maior" and len(df_f) > 0:
+            max_v = df_f["Valor"].max()
+            df_tabela_pag = df_f[df_f["Valor"] == max_v]
+            st.info("A exibir apenas o registo com o Maior Pagamento.")
+        elif st.session_state["filtro_pag"] == "acima_media" and len(df_f) > 0:
+            med_v = df_f["Valor"].mean()
+            df_tabela_pag = df_f[df_f["Valor"] > med_v]
+            st.info("A exibir apenas os registos com valores acima da media.")
+
+        col_g1, col_g2 = st.columns(2)
+        with col_g1:
+            st
