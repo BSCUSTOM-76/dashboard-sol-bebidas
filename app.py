@@ -235,14 +235,33 @@ def processar_excel_receber(excel_path):
     if df_raw.empty:
         return pd.DataFrame(), "Ficheiro Excel vazio"
         
+    # Normaliza os nomes das colunas
+    colunas_orig = list(df_raw.columns)
+    colunas_up = [str(c).strip().upper() for c in colunas_orig]
+    
+    # Deteta coluna de data, entidade e valor com precisão cirúrgica
+    col_data_idx = 0
+    col_entidade_idx = 1 if len(colunas_orig) > 1 else 0
+    col_valor_idx = -1
+    
+    for idx, c_up in enumerate(colunas_up):
+        if any(k in c_up for k in ["VALOR", "VLR", "VL."] or ("VALOR" in c_up)):
+            col_valor_idx = idx
+            break
+            
+    if col_valor_idx == -1:
+        # Se não encontrar pelo nome exato, pega a coluna numérica principal (excluindo a 0 e 1)
+        col_valor_idx = len(colunas_orig) - 1
+
     registos = []
     for _, row in df_raw.iterrows():
         vals = list(row.values)
-        if len(vals) < 2:
+        if len(vals) <= max(col_data_idx, col_entidade_idx, col_valor_idx):
             continue
-        val_data = vals[0]
-        val_ent = vals[1] if len(vals) > 1 else "DIVERSOS"
-        val_num = vals[-1] if len(vals) > 2 else 0.0
+            
+        val_data = vals[col_data_idx]
+        val_ent = vals[col_entidade_idx] if len(vals) > col_entidade_idx else "DIVERSOS"
+        val_num = vals[col_valor_idx] if len(vals) > col_valor_idx else 0.0
         
         if pd.isna(val_data):
             continue
