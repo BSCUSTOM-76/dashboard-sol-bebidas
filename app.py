@@ -375,11 +375,11 @@ elif menu_escolha == "Contas a Receber":
         ano_sel_r = st.sidebar.selectbox("Ano (Receber)", anos_r, key="ar2")
         df_fr = df_r[df_r["Ano"] == ano_sel_r]
         
-        # Filtro por Período Personalizado com formato DD/MM/AAAA
+         # Filtro por Período Personalizado com formato DD/MM/AAAA
         st.sidebar.markdown("---")
         st.sidebar.subheader("📅 Período (Receber)")
-        min_dr = df_fr["Data_Obj"].min().date() if not df_fr.empty else pd.to_datetime("2026-01-01").date()
-        max_dr = df_fr["Data_Obj"].max().date() if not df_fr.empty else pd.to_datetime("2026-12-31").date()
+        min_dp = df_f["Data_Obj"].min().date() if not df_f.empty else pd.to_datetime("2026-01-01").date()
+        max_dp = df_f["Data_Obj"].max().date() if not df_f.empty else pd.to_datetime("2026-12-31").date()
         
         periodo_r = st.sidebar.date_input("Intervalo de Datas", value=(min_dr, max_dr), format="DD/MM/YYYY", key="date_range_rec")
         
