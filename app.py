@@ -257,7 +257,6 @@ def processar_excel_receber(excel_path):
     if df_raw.empty:
         return pd.DataFrame(), "Ficheiro Excel vazio"
     
-    # Identificar colunas dinamicamente ou por nomes comuns
     col_data = None
     col_entidade = None
     col_valor = None
@@ -268,79 +267,4 @@ def processar_excel_receber(excel_path):
             col_data = col
         elif any(k in col_str for k in ["CLIENTE", "RAZÃO", "NOME", "ENTIDADE", "FORNECEDOR", "CLIFOR"]):
             col_entidade = col
-        elif any(k in col_str for k in ["VALOR", "VL", "TOTAL", "PREVISÃO"]):
-            col_valor = col
-            
-    # Fallback se não encontrar por nome exacto
-    if not col_data and len(df_raw.columns) > 0:
-        col_data = df_raw.columns[0]
-    if not col_entidade and len(df_raw.columns) > 1:
-        col_entidade = df_raw.columns[1]
-    if not col_valor and len(df_raw.columns) > 2:
-        col_valor = df_raw.columns[2]
-        
-    registos = []
-    for _, row in df_raw.iterrows():
-        val_data = row[col_data]
-        val_ent = row[col_entidade] if col_entidade else "DIVERSOS"
-        val_num = row[col_valor] if col_valor else 0.0
-        
-        # Converter data
-        if pd.isna(val_data):
-            continue
-        if isinstance(val_data, pd.Timestamp):
-            data_obj = val_data
-            vencimento_str = data_obj.strftime("%d/%m/%Y")
-        else:
-            dt_parse = pd.to_datetime(str(val_data), errors="coerce")
-            if pd.isna(dt_parse):
-                continue
-            data_obj = dt_parse
-            vencimento_str = data_obj.strftime("%d/%m/%Y")
-            
-        valor_float = converter_valor(val_num)
-        entidade_str = str(val_ent).strip() if not pd.isna(val_ent) else "DIVERSOS"
-        
-        if valor_float > 0:
-            registos.append({
-                "Vencimento": vencimento_str,
-                "Entidade": entidade_str,
-                "Valor": valor_float,
-                "Data_Obj": data_obj
-            })
-            
-    if not registos:
-        return pd.DataFrame(), "Nenhum registo válido extraído do Excel"
-        
-    df = pd.DataFrame(registos)
-    df = df[df["Data_Obj"] >= "2026-01-01"].dropna(subset=["Data_Obj"])
-    df["Ano"] = df["Data_Obj"].dt.year
-    df["Mes"] = df["Data_Obj"].dt.month
-    return df, "Ok"
-
-# ==========================================
-# MÓDULO 1: CONTAS A PAGAR
-# ==========================================
-if menu_escolha == "Contas a Pagar":
-    st.markdown('<div class="titulo-customizado">Gestão de Contas a Pagar</div>', unsafe_allow_html=True)
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    df_p, msg_p = processar_relatorio(caminho_pdf_pag, "pagamento")
-    
-    if not df_p.empty:
-        anos = sorted(df_p["Ano"].unique().tolist())
-        ano_sel = st.sidebar.selectbox("Ano (Pagar)", anos, key="ap1")
-        df_f = df_p[df_p["Ano"] == ano_sel]
-        
-        st.sidebar.markdown("---")
-        st.sidebar.subheader("📅 Período (Pagar)")
-        min_dp = df_f["Data_Obj"].min().date() if not df_f.empty else pd.to_datetime("2026-01-01").date()
-        max_dp = df_f["Data_Obj"].max().date() if not df_f.empty else pd.to_datetime("2026-12-31").date()
-        
-        periodo_p = st.sidebar.date_input("Intervalo de Datas", value=(min_dp, max_dp), format="DD/MM/YYYY", key="date_range_pag")
-        
-        if isinstance(periodo_p, tuple):
-            if len(periodo_p) == 2:
-                d_ini_p, d_fim_p = periodo_p
-                df_f = df_f[(df_f["Data_Obj"].dt.date >= d_ini_p) & (df_f["Data_Obj"].dt.date <= d_fim_p)]
-            elif len(
+        elif any(k in col_str for k in ["VALOR", "VL", "TOTAL", "PREVISÃO
