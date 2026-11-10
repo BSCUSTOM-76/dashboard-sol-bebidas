@@ -151,7 +151,7 @@ for f in fichs:
     f_path = os.path.join(pasta_dados, f)
     if "RELATÓRIO PREVISÃO DE PAGAMENTO" in f_upper:
         caminho_pdf_pag = f_path
-    if "REL. ANALÍTICO DE MOVIMENTAÇÃO CONTAS A RECEBER" in f_upper or "PREVISÃO_RECEBIMENTOS" in f_upper:
+    if "REL. ANALÍTICO DE MOVIMENTAÇÃO CONTAS A RECEBER" in f_upper or "REL. ANALÍTICO DE MOVIMENTAÇÃO CONTAS A RECEBER" in f_upper:
         caminho_pdf_rec = f_path
 
 def converter_valor(val_str):
