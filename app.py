@@ -142,17 +142,24 @@ with st.sidebar:
     st.markdown("---")
     st.header("Filtros do Painel")
 
-caminho_pdf_pag = os.path.join(pasta_dados, "RELATÓRIO PREVISÃO DE PAGAMENTO.pdf")
-caminho_excel_rec = os.path.join(pasta_dados, "Previsao_Recebimento_Analitico.xlsx")
+# Identificação automática de ficheiros na pasta atual do repositório
+caminho_pdf_pag = None
+caminho_excel_rec = None
 
 fichs = os.listdir(pasta_dados)
 for f in fichs:
     f_upper = f.upper()
     f_path = os.path.join(pasta_dados, f)
-    if "PAGAMENTO" in f_upper:
+    if "PAGAMENTO" in f_upper and f_upper.endswith(".PDF"):
         caminho_pdf_pag = f_path
-    if "RECEBIMENTO" in f_upper and f_upper.endswith((".XLSX", ".XLS")):
+    if ("RECEBIMENTO" in f_upper or "ANALITICO" in f_upper) and f_upper.endswith((".XLSX", ".XLS")):
         caminho_excel_rec = f_path
+
+# Fallback se não encontrar por nome exato
+if not caminho_pdf_pag:
+    caminho_pdf_pag = os.path.join(pasta_dados, "RELATÓRIO PREVISÃO DE PAGAMENTO.pdf")
+if not caminho_excel_rec:
+    caminho_excel_rec = os.path.join(pasta_dados, "Previsao_Recebimento_Analitico.xlsx")
 
 def converter_valor(val_str):
     if not val_str:
@@ -170,9 +177,9 @@ def converter_valor(val_str):
         return 0.0
 
 @st.cache_data
-def processar_relatorio(pdf_path, tipo="pagamento"):
+def processar_relatorio(pdf_path):
     if not pdf_path or not os.path.exists(pdf_path):
-        return pd.DataFrame(), f"Ficheiro não encontrado: {pdf_path}"
+        return pd.DataFrame(), f"Ficheiro PDF não encontrado no caminho: {pdf_path}"
     
     linhas_texto = []
     try:
@@ -183,7 +190,7 @@ def processar_relatorio(pdf_path, tipo="pagamento"):
                     for l in t.split("\n"):
                         linhas_texto.append(l.strip())
     except Exception as e:
-        return pd.DataFrame(), str(e)
+        return pd.DataFrame(), f"Erro ao ler PDF: {str(e)}"
                     
     if not linhas_texto:
         return pd.DataFrame(), "PDF vazio ou ilegível"
@@ -200,7 +207,7 @@ def processar_relatorio(pdf_path, tipo="pagamento"):
                 entidade_atual = partes[1].strip()
             elif i + 1 < len(linhas_texto):
                 entidade_atual = linhas_texto[i+1].strip()
-        elif tipo == "pagamento" and " - " in linha and not padrao_data.search(linha):
+        elif " - " in linha and not padrao_data.search(linha):
             if len(linha) > 5 and not any(term in linha_upper for term in ["TOTAL", "SAIBWEB", "EMISSAO"]):
                 entidade_atual = linha.strip()
 
@@ -247,39 +254,4 @@ def processar_relatorio(pdf_path, tipo="pagamento"):
 
 @st.cache_data
 def processar_excel_receber(excel_path):
-    if not excel_path or not os.path.exists(excel_path):
-        return pd.DataFrame(), f"Ficheiro Excel não encontrado em: {excel_path}"
-    try:
-        df_raw = pd.read_excel(excel_path, header=0)
-    except Exception as e:
-        return pd.DataFrame(), f"Erro ao ler Excel: {str(e)}"
-    
-    if df_raw.empty:
-        return pd.DataFrame(), "Ficheiro Excel vazio"
-    
-    df_raw.columns = [str(c).strip().upper() for c in df_raw.columns]
-    
-    col_data = None
-    col_entidade = None
-    col_valor = None
-    
-    for col in df_raw.columns:
-        if any(k in col for k in ["VENCIMENTO", "DATA", "VCTO"]):
-            col_data = col
-        elif any(k in col for k in ["CLIENTE", "RAZAO", "NOME", "ENTIDADE", "FORNECEDOR", "CLIFOR"]):
-            col_entidade = col
-        elif col in ["VALOR", "VL.", "VLR"] or ("VALOR" in col and "TOTAL" not in col):
-            col_valor = col
-            
-    if not col_valor:
-        for col in df_raw.columns:
-            if "TOTAL" in col or "PREVISAO" in col:
-                col_valor = col
-                break
-                
-    if not col_data and len(df_raw.columns) > 0:
-        col_data = df_raw.columns[0]
-    if not col_entidade and len(df_raw.columns) > 1:
-        col_entidade = df_raw.columns[1]
-    if not col_valor and len(df_raw.columns) > 2:
-        col_valor = df_
+    if
