@@ -345,7 +345,7 @@ if menu_escolha == "Contas a Pagar":
         st.subheader("📋 Lista Detalhada de Pagamentos")
         df_tb = df_tabela_pag[["Vencimento", "Entidade", "Valor"]].copy()
         df_tb.columns = ["Vencimento", "Fornecedor", "Valor"]
-        df_tb["Valor"] = df_tb["Valor"].apply(lambda x: f"R$ {x:,.2f}")
+        df_tb["Valor"] = df_tb["Valor"].map("R$ {:,.2f}".format)
         st.dataframe(df_tb, use_container_width=True, hide_index=True)
         st.markdown('</div>', unsafe_allow_html=True)
     else:
