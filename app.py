@@ -257,23 +257,20 @@ def processar_excel_receber(excel_path):
     if df_raw.empty:
         return pd.DataFrame(), "Ficheiro Excel vazio"
     
-    # Normalizar nomes das colunas
     df_raw.columns = [str(c).strip().upper() for c in df_raw.columns]
     
     col_data = None
     col_entidade = None
     col_valor = None
     
-    # Procura exata pelas colunas chave do relatório analítico
     for col in df_raw.columns:
         if any(k in col for k in ["VENCIMENTO", "DATA", "VCTO"]):
             col_data = col
         elif any(k in col for k in ["CLIENTE", "RAZAO", "NOME", "ENTIDADE", "FORNECEDOR", "CLIFOR"]):
             col_entidade = col
-        elif any(k == "VALOR" or k == "VL." or k == "VLR" or ("VALOR" in col and "TOTAL" not in col)):
+        elif any([k == "VALOR", k == "VL.", k == "VLR", ("VALOR" in col and "TOTAL" not in col)]):
             col_valor = col
             
-    # Se não encontrar a coluna de valor exata, pega na última coluna numérica ou com "TOTAL"
     if not col_valor:
         for col in df_raw.columns:
             if "TOTAL" in col or "PREVISAO" in col:
@@ -296,7 +293,6 @@ def processar_excel_receber(excel_path):
         if pd.isna(val_data):
             continue
             
-        # Converte a data
         if isinstance(val_data, pd.Timestamp):
             data_obj = val_data
             vencimento_str = data_obj.strftime("%d/%m/%Y")
@@ -307,7 +303,6 @@ def processar_excel_receber(excel_path):
             data_obj = dt_parse
             vencimento_str = data_obj.strftime("%d/%m/%Y")
             
-        # Converte o valor de forma rigorosa
         try:
             if isinstance(val_num, (int, float)):
                 valor_float = float(val_num)
@@ -319,7 +314,6 @@ def processar_excel_receber(excel_path):
             
         entidade_str = str(val_ent).strip() if not pd.isna(val_ent) else "DIVERSOS"
         
-        # Ignora linhas de cabeçalho repetidas, totais gerais ou valores irrelevantes
         if valor_float > 0 and entidade_str.upper() not in ["CLIENTE", "VALOR", "VENCIMENTO", "NOME", "TOTAL", "TOTAL GERAL"]:
             registos.append({
                 "Vencimento": vencimento_str,
