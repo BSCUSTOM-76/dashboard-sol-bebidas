@@ -250,27 +250,36 @@ def processar_excel_receber(excel_path):
     if not excel_path or not os.path.exists(excel_path):
         return pd.DataFrame(), f"Ficheiro Excel não encontrado em: {excel_path}"
     try:
-        df_raw = pd.read_excel(excel_path)
+        df_raw = pd.read_excel(excel_path, header=0)
     except Exception as e:
         return pd.DataFrame(), f"Erro ao ler Excel: {str(e)}"
     
     if df_raw.empty:
         return pd.DataFrame(), "Ficheiro Excel vazio"
     
-    # Normalizar nomes das colunas para facilitar a busca
+    # Normalizar nomes das colunas
     df_raw.columns = [str(c).strip().upper() for c in df_raw.columns]
     
-    col_data, col_entidade, col_valor = None, None, None
+    col_data = None
+    col_entidade = None
+    col_valor = None
     
+    # Procura exata pelas colunas chave do relatório analítico
     for col in df_raw.columns:
         if any(k in col for k in ["VENCIMENTO", "DATA", "VCTO"]):
             col_data = col
         elif any(k in col for k in ["CLIENTE", "RAZAO", "NOME", "ENTIDADE", "FORNECEDOR", "CLIFOR"]):
             col_entidade = col
-        elif any(k in col for k in ["VALOR", "VL", "TOTAL", "PREVISAO"]):
+        elif any(k == "VALOR" or k == "VL." or k == "VLR" or ("VALOR" in col and "TOTAL" not in col)):
             col_valor = col
             
-    # Fallback seguro caso os nomes exatos venham diferentes
+    # Se não encontrar a coluna de valor exata, pega na última coluna numérica ou com "TOTAL"
+    if not col_valor:
+        for col in df_raw.columns:
+            if "TOTAL" in col or "PREVISAO" in col:
+                col_valor = col
+                break
+                
     if not col_data and len(df_raw.columns) > 0:
         col_data = df_raw.columns[0]
     if not col_entidade and len(df_raw.columns) > 1:
@@ -280,12 +289,14 @@ def processar_excel_receber(excel_path):
         
     registos = []
     for _, row in df_raw.iterrows():
-        val_data = row[col_data]
+        val_data = row[col_data] if col_data else None
         val_ent = row[col_entidade] if col_entidade else "DIVERSOS"
         val_num = row[col_valor] if col_valor else 0.0
         
         if pd.isna(val_data):
             continue
+            
+        # Converte a data
         if isinstance(val_data, pd.Timestamp):
             data_obj = val_data
             vencimento_str = data_obj.strftime("%d/%m/%Y")
@@ -296,10 +307,20 @@ def processar_excel_receber(excel_path):
             data_obj = dt_parse
             vencimento_str = data_obj.strftime("%d/%m/%Y")
             
-        valor_float = converter_valor(val_num)
+        # Converte o valor de forma rigorosa
+        try:
+            if isinstance(val_num, (int, float)):
+                valor_float = float(val_num)
+            else:
+                v_limpo = str(val_num).replace("R$", "").replace(" ", "").replace(".", "").replace(",", ".")
+                valor_float = float(v_limpo)
+        except:
+            valor_float = 0.0
+            
         entidade_str = str(val_ent).strip() if not pd.isna(val_ent) else "DIVERSOS"
         
-        if valor_float > 0:
+        # Ignora linhas de cabeçalho repetidas, totais gerais ou valores irrelevantes
+        if valor_float > 0 and entidade_str.upper() not in ["CLIENTE", "VALOR", "VENCIMENTO", "NOME", "TOTAL", "TOTAL GERAL"]:
             registos.append({
                 "Vencimento": vencimento_str,
                 "Entidade": entidade_str,
