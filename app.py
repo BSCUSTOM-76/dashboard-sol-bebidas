@@ -254,6 +254,83 @@ def processar_relatorio(pdf_path, tipo="pagamento"):
     df["Mes"] = df["Data_Obj"].dt.month
     return df, "Ok"
 
+@st.cache_data
+def processar_relatorio_receber(pdf_path):
+    """Função dedicada e robusta para processar o Contas a Receber capturando todos os meses corretamente."""
+    if not pdf_path or not os.path.exists(pdf_path):
+        return pd.DataFrame(), "Ficheiro não encontrado"
+    
+    linhas_texto = []
+    try:
+        with pdfplumber.open(pdf_path) as pdf:
+            for pagina in pdf.pages:
+                t = pagina.extract_text()
+                if t:
+                    for l in t.split("\n"):
+                        linhas_texto.append(l.strip())
+    except Exception as e:
+        return pd.DataFrame(), str(e)
+                
+    if not linhas_texto:
+        return pd.DataFrame(), "PDF vazio ou ilegível"
+        
+    registos = []
+    entidade_atual = "DIVERSOS"
+    padrao_data = re.compile(r'\b(\d{2}/\d{2}/\d{4})\b')
+    
+    for i, linha in enumerate(linhas_texto):
+        linha_upper = linha.upper()
+        if any(k in linha_upper for k in ["CLIENTE", "CLIFOR:", "FORNECEDOR", "FORN:"]):
+            partes = re.split(r'Cliente:|Clifor:|Fornecedor:|Forn:', linha, flags=re.IGNORECASE)
+            if len(partes) > 1 and partes[1].strip():
+                entidade_atual = partes[1].strip()
+            elif i + 1 < len(linhas_texto):
+                entidade_atual = linhas_texto[i+1].strip()
+        elif " - " in linha and not padrao_data.search(linha):
+            if len(linha) > 5 and not any(term in linha_upper for term in ["TOTAL", "SAIBWEB", "EMISSÃO", "PÁGINA", "MOVIMENTAÇÃO"]):
+                entidade_atual = linha.strip()
+
+        if any(termo in linha_upper for termo in ["TOTAL GERAL", "TOTAL", "SAIBWEB", "EMISSÃO:", "PÁGINA:", "USUÁRIO:"]):
+            continue
+            
+        datas = padrao_data.findall(linha)
+        if datas:
+            vencimento = datas[0]
+            valores = re.findall(r'\b\d{1,3}(?:\.\d{3})*,\d{2}\b', linha)
+            if valores:
+                valor_float = converter_valor(valores[-1])
+                if valor_float > 0:
+                    registos.append({
+                        "Vencimento": vencimento,
+                        "Entidade": entidade_atual,
+                        "Valor": valor_float
+                    })
+
+    if not registos:
+        for linha in linhas_texto:
+            datas = padrao_data.findall(linha)
+            if datas:
+                vencimento = datas[0]
+                valores = re.findall(r'\b\d{1,3}(?:\.\d{3})*,\d{2}\b', linha)
+                if valores:
+                    valor_float = converter_valor(valores[-1])
+                    if valor_float > 0:
+                        registos.append({
+                            "Vencimento": vencimento,
+                            "Entidade": "DIVERSOS",
+                            "Valor": valor_float
+                        })
+
+    if not registos:
+        return pd.DataFrame(), "Nenhum valor/data extraído"
+        
+    df = pd.DataFrame(registos)
+    df["Data_Obj"] = pd.to_datetime(df["Vencimento"], format="%d/%m/%Y", errors="coerce")
+    df = df[df["Data_Obj"] >= "2026-01-01"].dropna(subset=["Data_Obj"])
+    df["Ano"] = df["Data_Obj"].dt.year
+    df["Mes"] = df["Data_Obj"].dt.month
+    return df, "Ok"
+
 meses_nomes = {1: "Janeiro", 2: "Fevereiro", 3: "Março", 4: "Abril", 5: "Maio", 6: "Junho",
                7: "Julho", 8: "Agosto", 9: "Setembro", 10: "Outubro", 11: "Novembro", 12: "Dezembro"}
 
@@ -368,14 +445,14 @@ elif menu_escolha == "Contas a Receber":
     st.markdown('<div class="titulo-customizado">Gestão de Contas a Receber</div>', unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
 
-    df_r, msg_r = processar_relatorio(caminho_pdf_rec, "recebimento")
+    df_r, msg_r = processar_relatorio_receber(caminho_pdf_rec)
     
     if not df_r.empty:
         anos_r = sorted(df_r["Ano"].unique().tolist())
         ano_sel_r = st.sidebar.selectbox("Ano (Receber)", anos_r, key="ar2")
         df_fr = df_r[df_r["Ano"] == ano_sel_r]
         
-         # Filtro por Período Personalizado com formato DD/MM/AAAA
+        # Filtro por Período Personalizado com formato DD/MM/AAAA
         st.sidebar.markdown("---")
         st.sidebar.subheader("📅 Período (Receber)")
         min_dr = df_fr["Data_Obj"].min().date() if not df_fr.empty else pd.to_datetime("2026-01-01").date()
