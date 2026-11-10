@@ -142,19 +142,25 @@ with st.sidebar:
     st.markdown("---")
     st.header("🔍 Filtros do Painel")
 
-# --- DETETAR AUTOMATICAMENTE OS FICHEIROS PELO NOME NOVO ---
-caminho_pdf_pag = os.path.join(pasta_dados, "RELATÓRIO PREVISÃO DE PAGAMENTO.pdf")
-caminho_pdf_rec = os.path.join(pasta_dados, "REL. ANALÍTICO DE MOVIMENTAÇÃO CONTAS A RECEBER.pdf")
+# --- DETETAR AUTOMATICAMENTE QUALQUER PDF NA PASTA ---
+caminho_pdf_pag = ""
+caminho_pdf_rec = ""
 
 fichs = os.listdir(pasta_dados)
 for f in fichs:
     f_upper = f.upper()
     f_path = os.path.join(pasta_dados, f)
-    if "RELATÓRIO PREVISÃO DE PAGAMENTO" in f_upper:
-        caminho_pdf_pag = f_path
-    if "ANALÍTICO DE MOVIMENTAÇÃO CONTAS A RECEBER" in f_upper or "ANALITICO DE MOVIMENTACAO" in f_upper or "RECEBER" in f_upper:
-        if f_upper.endswith(".PDF"):
+    if f_upper.endswith(".PDF"):
+        if "PAGAMENTO" in f_upper or "PAG" in f_upper:
+            caminho_pdf_pag = f_path
+        elif "RECEBER" in f_upper or "MOVIMENTAÇÃO" in f_upper or "MOVIMENTACAO" in f_upper or "ANALÍTICO" in f_upper or "ANALITICO" in f_upper:
             caminho_pdf_rec = f_path
+
+# Fallback caso encontre apenas PDFs genéricos
+if not caminho_pdf_rec:
+    for f in fichs:
+        if f.upper().endswith(".PDF") and f.upper() != os.path.basename(caminho_pdf_pag).upper():
+            caminho_pdf_rec = os.path.join(pasta_dados, f)
 
 def converter_valor(val_str):
     if not val_str:
@@ -167,11 +173,10 @@ def converter_valor(val_str):
     except:
         return 0.0
 
-# TTL=0 garante leitura direta do ficheiro novo no disco sem reter cache antiga
 @st.cache_data(ttl=0)
 def processar_relatorio(pdf_path, tipo="pagamento"):
     if not pdf_path or not os.path.exists(pdf_path):
-        return pd.DataFrame(), f"Ficheiro não encontrado: {pdf_path}"
+        return pd.DataFrame(), f"Ficheiro não encontrado. Certifique-se de que o PDF está na pasta do repositório."
     
     linhas_texto = []
     try:
@@ -213,53 +218,4 @@ def processar_relatorio(pdf_path, tipo="pagamento"):
         datas = padrao_data.findall(linha)
         if datas:
             vencimento = datas[0]
-            valores = re.findall(r'\b\d{1,3}(?:\.\d{3})*,\d{2}\b', linha)
-            if valores:
-                if len(valores) >= 2:
-                    valor_float = converter_valor(valores[-2])
-                else:
-                    valor_float = converter_valor(valores[0])
-                    
-                if valor_float > 0:
-                    registos.append({
-                        "Vencimento": vencimento,
-                        "Entidade": entidade_atual,
-                        "Valor": valor_float
-                    })
-
-    if not registos:
-        for linha in linhas_texto:
-            datas = padrao_data.findall(linha)
-            if datas:
-                vencimento = datas[0]
-                valores = re.findall(r'\b\d{1,3}(?:\.\d{3})*,\d{2}\b', linha)
-                if valores:
-                    valor_float = converter_valor(valores[0])
-                    if valor_float > 0:
-                        registos.append({
-                            "Vencimento": vencimento,
-                            "Entidade": "DIVERSOS",
-                            "Valor": valor_float
-                        })
-
-    if not registos:
-        return pd.DataFrame(), "Nenhum valor/data extraído"
-        
-    df = pd.DataFrame(registos)
-    df["Data_Obj"] = pd.to_datetime(df["Vencimento"], format="%d/%m/%Y", errors="coerce")
-    df = df.dropna(subset=["Data_Obj"])
-    df["Ano"] = df["Data_Obj"].dt.year
-    df["Mes"] = df["Data_Obj"].dt.month
-    return df, "Ok"
-
-# ==========================================
-# MÓDULO 1: CONTAS A PAGAR
-# ==========================================
-if menu_escolha == "Contas a Pagar":
-    st.markdown('<div class="titulo-customizado">Gestão de Contas a Pagar</div>', unsafe_allow_html=True)
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    df_p, msg_p = processar_relatorio(caminho_pdf_pag, "pagamento")
-    
-    if not df_p.empty:
-        anos = sorted(df_p["Ano"].unique().tolist())
+            valores = re.findall(r'\b\d{1,3
