@@ -235,34 +235,24 @@ def processar_excel_receber(excel_path):
     if df_raw.empty:
         return pd.DataFrame(), "Ficheiro Excel vazio"
         
-    # Normaliza os nomes das colunas
-    colunas_orig = list(df_raw.columns)
-    colunas_up = [str(c).strip().upper() for c in colunas_orig]
-    
-    # Deteta coluna de data, entidade e valor com precisão cirúrgica
-    col_data_idx = 0
-    col_entidade_idx = 1 if len(colunas_orig) > 1 else 0
-    col_valor_idx = -1
-    
-    for idx, c_up in enumerate(colunas_up):
-        if any(k in c_up for k in ["VALOR", "VLR", "VL."] or ("VALOR" in c_up)):
-            col_valor_idx = idx
-            break
-            
-    if col_valor_idx == -1:
-        # Se não encontrar pelo nome exato, pega a coluna numérica principal (excluindo a 0 e 1)
-        col_valor_idx = len(colunas_orig) - 1
-
     registos = []
     for _, row in df_raw.iterrows():
         vals = list(row.values)
-        if len(vals) <= max(col_data_idx, col_entidade_idx, col_valor_idx):
+        if len(vals) < 3:
             continue
             
-        val_data = vals[col_data_idx]
-        val_ent = vals[col_entidade_idx] if len(vals) > col_entidade_idx else "DIVERSOS"
-        val_num = vals[col_valor_idx] if len(vals) > col_valor_idx else 0.0
+        val_data = vals[0]       # Data de Vencimento
+        val_codigo = vals[1]     # Código do Cliente
+        val_nome = vals[2]       # Nome / Razão Social do Cliente
         
+        # Procura o valor monetário correto nas colunas seguintes (evitando colunas zeradas)
+        valor_float = 0.0
+        for v in vals[3:]:
+            num_v = converter_valor(v)
+            if num_v > 0:
+                valor_float = num_v
+                break
+                
         if pd.isna(val_data):
             continue
             
@@ -276,9 +266,15 @@ def processar_excel_receber(excel_path):
             data_obj = dt_parse
             vencimento_str = data_obj.strftime("%d/%m/%Y")
             
-        valor_float = converter_valor(val_num)
-        entidade_str = str(val_ent).strip() if not pd.isna(val_ent) else "DIVERSOS"
+        codigo_str = str(val_codigo).strip() if not pd.isna(val_codigo) else ""
+        nome_str = str(val_nome).strip() if not pd.isna(val_nome) else "DIVERSOS"
         
+        # Junta o código e o nome no formato Executivo: [Código] — Nome
+        if codigo_str and codigo_str.upper() not in ["NAN", "NONE", ""]:
+            entidade_str = f"[{codigo_str}] — {nome_str}"
+        else:
+            entidade_str = nome_str
+            
         if valor_float > 0 and entidade_str.upper() not in ["CLIENTE", "VALOR", "VENCIMENTO", "NOME", "TOTAL", "TOTAL GE"]:
             registos.append({"Vencimento": vencimento_str, "Entidade": entidade_str, "Valor": valor_float, "Data_Obj": data_obj})
             
