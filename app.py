@@ -265,6 +265,4 @@ def processar_excel_receber(excel_path):
         col_str = str(col).upper()
         if any(k in col_str for k in ["VENCIMENTO", "DATA", "VCTO"]):
             col_data = col
-        elif any(k in col_str for k in ["CLIENTE", "RAZÃO", "NOME", "ENTIDADE", "FORNECEDOR", "CLIFOR"]):
-            col_entidade = col
-        elif any(k in col_str for k in ["VALOR", "VL", "TOTAL", "PREVISÃO
+        elif any(k in col_str for k in ["CLIENTE", "RAZÃO", "NOME", "ENTIDADE
