@@ -11,18 +11,67 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# Estilização CSS personalizada para o Dark Mode e Amarelo Corporativo
 st.markdown("""
     <style>
-    .main { background-color: #0e1117; }
-    .card { background-color: #161b22; border: 1px solid #30363d; border-top: 3px solid #f2cc0d; padding: 20px; border-radius: 10px; margin-bottom: 10px; }
-    .metric-title { color: #f2cc0d; font-size: 14px; font-weight: 600; text-transform: uppercase; }
-    .metric-value { color: #f0f6fc; font-size: 26px; font-weight: 700; margin-top: 5px; }
-    .titulo-customizado { color: #f0f6fc; font-size: 28px; font-weight: 700; margin-bottom: 0px; }
-    .login-card { background-color: #161b22; border: 1px solid #30363d; border-top: 3px solid #f2cc0d; padding: 30px; border-radius: 10px; max-width: 400px; margin: 80px auto; }
-    .user-badge { position: fixed; top: 15px; right: 80px; background-color: #161b22; border: 1px solid #30363d; border-left: 3px solid #f2cc0d; padding: 5px 15px; border-radius: 20px; color: #f0f6fc; font-size: 13px; z-index: 999999; display: flex; align-items: center; gap: 8px; }
+    .main {
+        background-color: #0e1117;
+    }
+    .card {
+        background-color: #161b22;
+        border: 1px solid #30363d;
+        border-top: 3px solid #f2cc0d;
+        padding: 20px;
+        border-radius: 10px;
+        margin-bottom: 10px;
+    }
+    .metric-title {
+        color: #f2cc0d;
+        font-size: 14px;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+    .metric-value {
+        color: #f0f6fc;
+        font-size: 26px;
+        font-weight: 700;
+        margin-top: 5px;
+    }
+    .titulo-customizado {
+        color: #f0f6fc;
+        font-size: 28px;
+        font-weight: 700;
+        margin-bottom: 0px;
+    }
+    .login-card {
+        background-color: #161b22;
+        border: 1px solid #30363d;
+        border-top: 3px solid #f2cc0d;
+        padding: 30px;
+        border-radius: 10px;
+        max-width: 400px;
+        margin: 80px auto;
+    }
+    .user-badge {
+        position: fixed;
+        top: 15px;
+        right: 80px;
+        background-color: #161b22;
+        border: 1px solid #30363d;
+        border-left: 3px solid #f2cc0d;
+        padding: 5px 15px;
+        border-radius: 20px;
+        color: #f0f6fc;
+        font-size: 13px;
+        z-index: 999999;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
     </style>
 """, unsafe_allow_html=True)
 
+# --- SISTEMA DE AUTENTICACAO (LOGIN) ---
 if "autenticado" not in st.session_state:
     st.session_state["autenticado"] = False
 
@@ -34,8 +83,10 @@ if not st.session_state["autenticado"]:
                 <h2 style='color: #f0f6fc; text-align: center;'>Acesso Restrito</h2>
                 <p style='color: #8b949e; text-align: center;'>Sol Bebidas - Financeiro</p>
         """, unsafe_allow_html=True)
+        
         usuario_input = st.text_input("Utilizador")
         senha_input = st.text_input("Palavra-passe", type="password")
+        
         if st.button("Entrar no Sistema", use_container_width=True):
             utilizadores_autorizados = {
                 "Bruno": "Sol@2024",
@@ -43,15 +94,18 @@ if not st.session_state["autenticado"]:
                 "diretoria": "finan@sol",
                 "Fabio": "sol@finan"
             }
+            
             if usuario_input in utilizadores_autorizados and utilizadores_autorizados[usuario_input] == senha_input:
                 st.session_state["autenticado"] = True
                 st.session_state["usuario_atual"] = usuario_input
                 st.rerun()
             else:
                 st.error("Utilizador ou palavra-passe incorretos.")
+        
         st.markdown('</div>', unsafe_allow_html=True)
     st.stop()
 
+# --- EXIBIR UTILIZADOR NO CANTO SUPERIOR DIREITO ---
 usuario_logado = st.session_state.get('usuario_atual', 'Convidado')
 st.markdown(f"""
     <div class="user-badge">
@@ -66,31 +120,39 @@ if "filtro_rec" not in st.session_state:
 
 pasta_dados = os.getcwd()
 
-# DIAGNÓSTICO VISUAL NA BARRA LATERAL
+# --- BARRA LATERAL ORGANIZADA (LOGO, MENU E FILTROS) ---
 with st.sidebar:
-    st.markdown("### 🔍 Diagnóstico de Ficheiros")
-    fichs_pasta = os.listdir(pasta_dados)
-    st.write("Ficheiros detetados na pasta:")
-    st.write(fichs_pasta)
-    st.markdown("---")
+    caminho_logo = os.path.join(pasta_dados, "logo.png")
+    if os.path.exists(caminho_logo):
+        try:
+            st.image(caminho_logo, width=140)
+        except:
+            st.markdown("<h2 style='color: #f2cc0d;'>SOL BEBIDAS</h2>", unsafe_allow_html=True)
+    else:
+        st.markdown("<h2 style='color: #f2cc0d;'>SOL BEBIDAS</h2>", unsafe_allow_html=True)
     
+    st.markdown("### Menu Executivo")
     menu_escolha = st.radio(
         "Selecione o Relatorio:",
         ["Contas a Pagar", "Contas a Receber"],
         label_visibility="collapsed"
     )
+    
+    st.markdown("---")
+    st.header("Filtros do Painel")
 
+# Identificação automática de ficheiros
+fichs_pasta = os.listdir(pasta_dados)
 caminho_pdf_pag = os.path.join(pasta_dados, "RELATÓRIO PREVISÃO DE PAGAMENTO.pdf")
 caminho_excel_rec = os.path.join(pasta_dados, "Previsao_Recebimento_Analitico.xlsx")
 
 for f in fichs_pasta:
     f_upper = f.upper()
     f_path = os.path.join(pasta_dados, f)
-    if "PAGamento" in f_upper or "PAGAMENTO" in f_upper:
+    if "PAGAMENTO" in f_upper:
         caminho_pdf_pag = f_path
-    if "RECEBIMENTO" in f_upper or "RECEBER" in f_upper:
-        if f_upper.endswith((".XLSX", ".XLS")):
-            caminho_excel_rec = f_path
+    if "RECEBIMENTO" in f_upper and f_upper.endswith((".XLSX", ".XLS")):
+        caminho_excel_rec = f_path
 
 def converter_valor(val_str):
     if not val_str:
@@ -110,7 +172,7 @@ def converter_valor(val_str):
 @st.cache_data
 def processar_relatorio(pdf_path):
     if not pdf_path or not os.path.exists(pdf_path):
-        return pd.DataFrame(), f"PDF não encontrado em: {pdf_path}"
+        return pd.DataFrame(), "Ficheiro PDF não encontrado"
     linhas_texto = []
     try:
         with pdfplumber.open(pdf_path) as pdf:
@@ -142,7 +204,7 @@ def processar_relatorio(pdf_path):
                     registos.append({"Vencimento": vencimento, "Entidade": entidade_atual, "Valor": valor_float})
                     
     if not registos:
-        return pd.DataFrame(), f"PDF lido, mas nenhum valor extraído. Linhas totais no PDF: {len(linhas_texto)}"
+        return pd.DataFrame(), "Nenhum valor extraído do PDF"
         
     df = pd.DataFrame(registos)
     df["Data_Obj"] = pd.to_datetime(df["Vencimento"], format="%d/%m/%Y", errors="coerce")
@@ -154,18 +216,17 @@ def processar_relatorio(pdf_path):
 @st.cache_data
 def processar_excel_receber(excel_path):
     if not excel_path or not os.path.exists(excel_path):
-        return pd.DataFrame(), f"Excel não encontrado em: {excel_path}"
+        return pd.DataFrame(), f"Ficheiro Excel não encontrado"
     try:
         df_raw = pd.read_excel(excel_path, header=0)
     except Exception as e:
-        return pd.DataFrame(), f"Erro ao ler Excel: {str(e)}"
+        return pd.DataFrame(), str(e)
         
     if df_raw.empty:
-        return pd.DataFrame(), "Excel vazio"
+        return pd.DataFrame(), "Ficheiro Excel vazio"
         
     registos = []
     for _, row in df_raw.iterrows():
-        # Tenta apanhar a primeira coluna como data, segunda como entidade e última como valor
         vals = list(row.values)
         if len(vals) < 2:
             continue
@@ -201,7 +262,7 @@ def processar_excel_receber(excel_path):
             registos.append({"Vencimento": vencimento_str, "Entidade": entidade_str, "Valor": valor_float, "Data_Obj": data_obj})
             
     if not registos:
-        return pd.DataFrame(), f"Excel lido ({len(df_raw)} linhas), mas nenhuma linha válida extraída."
+        return pd.DataFrame(), "Nenhum registo válido extraído do Excel"
         
     df = pd.DataFrame(registos)
     df = df.dropna(subset=["Data_Obj"])
@@ -218,10 +279,7 @@ if menu_escolha == "Contas a Pagar":
 
     df_p, msg_p = processar_relatorio(caminho_pdf_pag)
     
-    if df_p.empty:
-        st.warning(f"⚠️ {msg_p}")
-        st.info(f"Caminho testado: {caminho_pdf_pag}")
-    else:
+    if not df_p.empty:
         anos = sorted(df_p["Ano"].unique().tolist())
         ano_sel = st.sidebar.selectbox("Ano (Pagar)", anos, key="ap1")
         df_f = df_p[df_p["Ano"] == ano_sel]
@@ -249,6 +307,8 @@ if menu_escolha == "Contas a Pagar":
         df_tb["Valor"] = df_tb["Valor"].map("R$ {:,.2f}".format)
         st.dataframe(df_tb, use_container_width=True, hide_index=True)
         st.markdown('</div>', unsafe_allow_html=True)
+    else:
+        st.warning(f"⚠️ Pagamentos: {msg_p}")
 
 # ==========================================
 # MÓDULO 2: CONTAS A RECEBER
@@ -259,10 +319,7 @@ elif menu_escolha == "Contas a Receber":
 
     df_r, msg_r = processar_excel_receber(caminho_excel_rec)
     
-    if df_r.empty:
-        st.warning(f"⚠️ {msg_r}")
-        st.info(f"Caminho testado: {caminho_excel_rec}")
-    else:
+    if not df_r.empty:
         anos_r = sorted(df_r["Ano"].unique().tolist())
         ano_sel_r = st.sidebar.selectbox("Ano (Receber)", anos_r, key="ar2")
         df_fr = df_r[df_r["Ano"] == ano_sel_r]
@@ -290,7 +347,10 @@ elif menu_escolha == "Contas a Receber":
         df_tbr["Valor"] = df_tbr["Valor"].map("R$ {:,.2f}".format)
         st.dataframe(df_tbr, use_container_width=True, hide_index=True)
         st.markdown('</div>', unsafe_allow_html=True)
+    else:
+        st.warning(f"⚠️ Recebimentos: {msg_r}")
 
+# --- ASSINATURA NO RODAPE ESQUERDO DA BARRA LATERAL ---
 with st.sidebar:
     st.markdown("<br>" * 4, unsafe_allow_html=True)
     st.markdown("<hr style='border-color: #30363d;'>", unsafe_allow_html=True)
