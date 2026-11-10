@@ -416,6 +416,19 @@ elif menu_escolha == "Contas a Receber":
             neg = df_r[df_r["Valor"] < 0]
             st.write(f"Linhas negativas: {len(neg)} (soma R$ {neg['Valor'].sum():,.2f})")
 
+        # --- DEBUG TEMPORÁRIO: mostra o texto bruto que o script lê do PDF ---
+        with st.sidebar.expander("🐞 Debug: texto do PDF"):
+            try:
+                with pdfplumber.open(caminho_pdf_rec) as pdf_dbg:
+                    linhas_dbg = []
+                    for p_dbg in pdf_dbg.pages[:2]:
+                        t_dbg = p_dbg.extract_text()
+                        if t_dbg:
+                            linhas_dbg.extend(t_dbg.split("\n"))
+                st.code("\n".join(linhas_dbg[:50]))
+            except Exception as e_dbg:
+                st.write(f"Erro ao ler o PDF: {e_dbg}")
+
         anos_r = ["Todos"] + sorted(df_r["Ano"].unique().tolist())
         ano_sel_r = st.sidebar.selectbox("Ano (Receber)", anos_r, key="ar2")
         df_fr = df_r if ano_sel_r == "Todos" else df_r[df_r["Ano"] == ano_sel_r]
