@@ -11,7 +11,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Estilização CSS personalizada para o Dark Mode, Amarelo Corporativo e Utilizador no Topo Direito
+# Estilização CSS personalizada para o Dark Mode e Amarelo Corporativo
 st.markdown("""
     <style>
     .main {
@@ -113,13 +113,11 @@ st.markdown(f"""
     </div>
 """, unsafe_allow_html=True)
 
-# --- GESTAO DE ESTADOS PARA FILTROS DOS CARTOES ---
 if "filtro_pag" not in st.session_state:
     st.session_state["filtro_pag"] = "todos"
 if "filtro_rec" not in st.session_state:
     st.session_state["filtro_rec"] = "todos"
 
-# --- DAQUI PARA BAIXO: DASHBOARD PROTEGIDO ---
 pasta_dados = os.getcwd()
 
 with st.sidebar:
@@ -248,7 +246,7 @@ def processar_relatorio(pdf_path, tipo="pagamento"):
 @st.cache_data
 def processar_excel_receber(excel_path):
     if not excel_path or not os.path.exists(excel_path):
-        return pd.DataFrame(), f"Ficheiro Excel não encontrado em: {excel_path}"
+        return pd.DataFrame(), f"Ficheiro Excel não encontrado: {excel_path}"
     try:
         df_raw = pd.read_excel(excel_path, header=0)
     except Exception as e:
@@ -257,10 +255,7 @@ def processar_excel_receber(excel_path):
     if df_raw.empty:
         return pd.DataFrame(), "Ficheiro Excel vazio"
     
-    # Identificação inteligente e segura por posições e colunas
     colunas = list(df_raw.columns)
-    
-    # Procura a coluna de data (geralmente a primeira ou com nome contendo data/vencimento)
     col_data = colunas[0]
     for c in colunas:
         c_str = str(c).upper()
@@ -268,7 +263,6 @@ def processar_excel_receber(excel_path):
             col_data = c
             break
             
-    # Procura a coluna de cliente/entidade
     col_entidade = colunas[1] if len(colunas) > 1 else colunas[0]
     for c in colunas:
         c_str = str(c).upper()
@@ -276,7 +270,6 @@ def processar_excel_receber(excel_path):
             col_entidade = c
             break
             
-    # Procura a coluna de valor
     col_valor = colunas[-1] if len(colunas) > 2 else colunas[0]
     for c in colunas:
         c_str = str(c).upper()
@@ -293,7 +286,6 @@ def processar_excel_receber(excel_path):
         if pd.isna(val_data):
             continue
             
-        # Tenta converter a data
         if isinstance(val_data, pd.Timestamp):
             data_obj = val_data
             vencimento_str = data_obj.strftime("%d/%m/%Y")
@@ -304,7 +296,6 @@ def processar_excel_receber(excel_path):
             data_obj = dt_parse
             vencimento_str = data_obj.strftime("%d/%m/%Y")
             
-        # Converte o valor monetário com segurança
         try:
             if isinstance(val_num, (int, float)):
                 valor_float = float(val_num)
@@ -316,7 +307,6 @@ def processar_excel_receber(excel_path):
             
         entidade_str = str(val_ent).strip() if not pd.isna(val_ent) else "DIVERSOS"
         
-        # Ignora cabeçalhos repetidos e linhas de totais
         if valor_float > 0 and entidade_str.upper() not in ["CLIENTE", "VALOR", "VENCIMENTO", "NOME", "TOTAL", "TOTAL GERAL", "TOTAL GE"]:
             registos.append({
                 "Vencimento": vencimento_str,
@@ -351,51 +341,4 @@ if menu_escolha == "Contas a Pagar":
         st.sidebar.markdown("---")
         st.sidebar.subheader("Periodo (Pagar)")
         min_dp = df_f["Data_Obj"].min().date() if not df_f.empty else pd.to_datetime("2026-01-01").date()
-        max_dp = df_f["Data_Obj"].max().date() if not df_f.empty else pd.to_datetime("2026-12-31").date()
-        
-        periodo_p = st.sidebar.date_input("Intervalo de Datas", value=(min_dp, max_dp), format="DD/MM/YYYY", key="date_range_pag")
-        
-        if isinstance(periodo_p, tuple):
-            if len(periodo_p) == 2:
-                d_ini_p, d_fim_p = periodo_p
-                df_f = df_f[(df_f["Data_Obj"].dt.date >= d_ini_p) & (df_f["Data_Obj"].dt.date <= d_fim_p)]
-            elif len(periodo_p) == 1:
-                d_ini_p = periodo_p[0]
-                df_f = df_f[df_f["Data_Obj"].dt.date == d_ini_p]
-
-        val_total = f"R$ {df_f['Valor'].sum():,.2f}"
-        qtd_reg = f"{len(df_f)}"
-        maior_val = f"R$ {df_f['Valor'].max() if len(df_f)>0 else 0:,.2f}"
-        media_val = f"R$ {df_f['Valor'].mean() if len(df_f)>0 else 0:,.2f}"
-
-        c1, c2, c3, c4 = st.columns(4)
-        
-        with c1:
-            st.markdown(f'<div class="card"><div class="metric-title">Total Previsto</div><div class="metric-value">{val_total}</div></div>', unsafe_allow_html=True)
-            if st.button("Ver Todos", use_container_width=True, key="b_todos_p"):
-                st.session_state["filtro_pag"] = "todos"
-                st.rerun()
-                
-        with c2:
-            st.markdown(f'<div class="card"><div class="metric-title">Registos</div><div class="metric-value">{qtd_reg}</div></div>', unsafe_allow_html=True)
-            if st.button("Ver Lista Completa", use_container_width=True, key="b_reg_p"):
-                st.session_state["filtro_pag"] = "todos"
-                st.rerun()
-                
-        with c3:
-            st.markdown(f'<div class="card"><div class="metric-title">Maior Pagamento</div><div class="metric-value">{maior_val}</div></div>', unsafe_allow_html=True)
-            if st.button("Ver Maior Valor", use_container_width=True, key="b_maior_p"):
-                st.session_state["filtro_pag"] = "maior"
-                st.rerun()
-                
-        with c4:
-            st.markdown(f'<div class="card"><div class="metric-title">Media</div><div class="metric-value">{media_val}</div></div>', unsafe_allow_html=True)
-            if st.button("Acima da Media", use_container_width=True, key="b_media_p"):
-                st.session_state["filtro_pag"] = "acima_media"
-                st.rerun()
-
-        df_tabela_pag = df_f.copy()
-        if st.session_state["filtro_pag"] == "maior" and len(df_f) > 0:
-            max_v = df_f["Valor"].max()
-            df_tabela_pag = df_f[df_f["Valor"] == max_v]
-            st.info("A
+        max_dp = df_f["Data_Obj"].max().date() if not df_f.empty else pd.to_datetime("2026-12-31").date
