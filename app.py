@@ -156,7 +156,6 @@ for f in fichs:
         elif "RECEBER" in f_upper or "MOVIMENTAÇÃO" in f_upper or "MOVIMENTACAO" in f_upper or "ANALÍTICO" in f_upper or "ANALITICO" in f_upper:
             caminho_pdf_rec = f_path
 
-# Fallback caso encontre apenas PDFs genéricos
 if not caminho_pdf_rec:
     for f in fichs:
         if f.upper().endswith(".PDF") and f.upper() != os.path.basename(caminho_pdf_pag).upper():
@@ -176,7 +175,7 @@ def converter_valor(val_str):
 @st.cache_data(ttl=0)
 def processar_relatorio(pdf_path, tipo="pagamento"):
     if not pdf_path or not os.path.exists(pdf_path):
-        return pd.DataFrame(), f"Ficheiro não encontrado. Certifique-se de que o PDF está na pasta do repositório."
+        return pd.DataFrame(), f"Ficheiro não encontrado: {pdf_path}"
     
     linhas_texto = []
     try:
@@ -202,20 +201,4 @@ def processar_relatorio(pdf_path, tipo="pagamento"):
         if any(termo in linha_upper for termo in ["TOTAL GERAL", "SAIBWEB", "EMISSÃO:", "PÁGINA:", "USUÁRIO:", "QTDE DOC"]):
             continue
             
-        if any(k in linha_upper for k in ["FORNECEDOR", "FORN:", "CLIENTE", "CLIFOR:"]):
-            partes = re.split(r'Fornecedor:|Forn:|Cliente:|Clifor:', linha, flags=re.IGNORECASE)
-            if len(partes) > 1 and partes[1].strip():
-                entidade_atual = partes[1].strip()
-            elif i + 1 < len(linhas_texto):
-                entidade_atual = linhas_texto[i+1].strip()
-        elif tipo == "pagamento" and " - " in linha and not padrao_data.search(linha):
-            if len(linha) > 5 and not any(term in linha_upper for term in ["TOTAL", "SAIBWEB", "EMISSÃO"]):
-                entidade_atual = linha.strip()
-        elif tipo == "recebimento" and len(linha) > 3 and not padrao_data.search(linha) and not any(term in linha_upper for term in ["TOTAL", "SAIBWEB", "EMISSÃO", "PÁGINA"]):
-            if any(char.isdigit() for char in linha[:3]) and "-" in linha:
-                entidade_atual = linha.strip()
-            
-        datas = padrao_data.findall(linha)
-        if datas:
-            vencimento = datas[0]
-            valores = re.findall(r'\b\d{1,3
+        if any(
