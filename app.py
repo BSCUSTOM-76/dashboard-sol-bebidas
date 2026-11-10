@@ -191,8 +191,8 @@ def processar_relatorio(pdf_path, tipo="pagamento"):
     for i, linha in enumerate(linhas_texto):
         linha_upper = linha.upper()
         
-        # Ignorar linhas de totais gerais e cabeçalhos do relatório
-        if any(termo in linha_upper for termo in ["TOTAL GERAL", "SAIBWEB", "EMISSÃO:", "PÁGINA:", "USUÁRIO:", "QTDE DOC"]):
+        # Ignorar rigorosamente qualquer linha de totais, subtotais, resumos ou cabeçalhos
+        if any(termo in linha_upper for termo in ["TOTAL", "SUBTOTAL", "RESUMO", "SAIBWEB", "EMISSÃO:", "PÁGINA:", "USUÁRIO:", "QTDE DOC"]):
             continue
             
         if any(k in linha_upper for k in ["FORNECEDOR", "FORN:", "CLIENTE", "CLIFOR:"]):
@@ -211,11 +211,8 @@ def processar_relatorio(pdf_path, tipo="pagamento"):
         datas = padrao_data.findall(linha)
         if datas:
             vencimento = datas[0]
-            # Captura todos os valores monetários da linha
             valores = re.findall(r'\b\d{1,3}(?:\.\d{3})*,\d{2}\b', linha)
             if valores:
-                # No relatório oficial, o saldo a receber (última coluna de valor) corresponde ao montante em aberto
-                # Se houver múltiplos valores na linha, o saldo/valor efetivo é o último valor válido da linha de detalhe
                 valor_float = converter_valor(valores[-1])
                 if valor_float > 0:
                     registos.append({
@@ -446,38 +443,4 @@ elif menu_escolha == "Contas a Receber":
         col_gr1, col_gr2 = st.columns(2)
         with col_gr1:
             st.markdown('<div class="card">', unsafe_allow_html=True)
-            st.subheader("📊 Top 5 Clientes (Valores)")
-            df_top_cli = df_fr.groupby("Entidade")["Valor"].sum().nlargest(5)
-            st.bar_chart(df_top_cli)
-            st.markdown('</div>', unsafe_allow_html=True)
-            
-        with col_gr2:
-            st.markdown('<div class="card">', unsafe_allow_html=True)
-            st.subheader("📋 Ranking Detalhado de Clientes")
-            df_cli_detalhe = df_fr.groupby("Entidade")["Valor"].sum().nlargest(10).reset_index()
-            df_cli_detalhe["Valor"] = df_cli_detalhe["Valor"].apply(lambda x: f"R$ {x:,.2f}")
-            st.dataframe(df_cli_detalhe, use_container_width=True, hide_index=True)
-            st.markdown('</div>', unsafe_allow_html=True)
-
-        st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.subheader("📈 Evolução Temporal de Recebimentos")
-        d_dr = df_fr.groupby("Vencimento")["Valor"].sum().reset_index()
-        d_dr["DT"] = pd.to_datetime(d_dr["Vencimento"], format="%d/%m/%Y")
-        st.line_chart(d_dr.sort_values("DT").set_index("Vencimento")["Valor"])
-        st.markdown('</div>', unsafe_allow_html=True)
-
-        st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.subheader("📋 Lista Detalhada de Recebimentos")
-        df_tbr = df_tabela_rec[["Vencimento", "Entidade", "Valor"]].copy()
-        df_tbr.columns = ["Vencimento", "Cliente", "Valor"]
-        df_tbr["Valor"] = df_tbr["Valor"].apply(lambda x: f"R$ {x:,.2f}")
-        st.dataframe(df_tbr, use_container_width=True, hide_index=True)
-        st.markdown('</div>', unsafe_allow_html=True)
-    else:
-        st.warning(f"⚠️ Recebimentos - Ficheiro: '{os.path.basename(caminho_pdf_rec) if caminho_pdf_rec else 'Nenhum'}' | Estado: {msg_r}")
-
-# --- ASSINATURA NO RODAPÉ ESQUERDO DA BARRA LATERAL ---
-with st.sidebar:
-    st.markdown("<br>" * 4, unsafe_allow_html=True)
-    st.markdown("<hr style='border-color: #30363d;'>", unsafe_allow_html=True)
-    st.markdown("<div style='text-align: left; color: #f2cc0d; font-size: 13px;'>Desenvolvedor:<br><b>Bruno Sabanelli</b></div>", unsafe_allow_html=True)
+            st.subheader("📊 Top
