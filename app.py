@@ -191,8 +191,8 @@ def processar_relatorio(pdf_path, tipo="pagamento"):
     for i, linha in enumerate(linhas_texto):
         linha_upper = linha.upper()
         
-        # Ignorar linhas que contenham sub-totais do relatório para evitar duplicidade de soma
-        if any(termo in linha_upper for termo in ["TOTAL GERAL", "TOTAL", "SUBTOTAL", "SAIBWEB", "EMISSÃO:", "PÁGINA:", "USUÁRIO:"]):
+        # Ignorar apenas cabeçalhos globais e rodapés do sistema para não duplicar somas
+        if any(termo in linha_upper for termo in ["TOTAL GERAL", "SAIBWEB", "EMISSÃO:", "PÁGINA:", "USUÁRIO:"]):
             continue
             
         if any(k in linha_upper for k in ["FORNECEDOR", "FORN:", "CLIENTE", "CLIFOR:"]):
@@ -220,6 +220,21 @@ def processar_relatorio(pdf_path, tipo="pagamento"):
                         "Entidade": entidade_atual,
                         "Valor": valor_float
                     })
+
+    if not registos:
+        for linha in linhas_texto:
+            datas = padrao_data.findall(linha)
+            if datas:
+                vencimento = datas[0]
+                valores = re.findall(r'\b\d{1,3}(?:\.\d{3})*,\d{2}\b', linha)
+                if valores:
+                    valor_float = converter_valor(valores[-1])
+                    if valor_float > 0:
+                        registos.append({
+                            "Vencimento": vencimento,
+                            "Entidade": "DIVERSOS",
+                            "Valor": valor_float
+                        })
 
     if not registos:
         return pd.DataFrame(), "Nenhum valor/data extraído"
@@ -290,3 +305,30 @@ if menu_escolha == "Contas a Pagar":
                 
         with c4:
             st.markdown(f'<div class="card"><div class="metric-title">📊 Média</div><div class="metric-value">{media_val}</div></div>', unsafe_allow_html=True)
+            if st.button("📊 Acima da Média", use_container_width=True, key="b_media_p"):
+                st.session_state["filtro_pag"] = "acima_media"
+                st.rerun()
+
+        df_tabela_pag = df_f.copy()
+        if st.session_state["filtro_pag"] == "maior" and len(df_f) > 0:
+            max_v = df_f["Valor"].max()
+            df_tabela_pag = df_f[df_f["Valor"] == max_v]
+            st.info("ℹ️ A exibir apenas o registo com o **Maior Pagamento**.")
+        elif st.session_state["filtro_pag"] == "acima_media" and len(df_f) > 0:
+            med_v = df_f["Valor"].mean()
+            df_tabela_pag = df_f[df_f["Valor"] > med_v]
+            st.info("ℹ️ A exibir apenas os registos com valores **acima da média**.")
+
+        col_g1, col_g2 = st.columns(2)
+        with col_g1:
+            st.markdown('<div class="card">', unsafe_allow_html=True)
+            st.subheader("📊 Top 5 Fornecedores (Valores)")
+            df_top = df_f.groupby("Entidade")["Valor"].sum().nlargest(5)
+            st.bar_chart(df_top)
+            st.markdown('</div>', unsafe_allow_html=True)
+            
+        with col_g2:
+            st.markdown('<div class="card">', unsafe_allow_html=True)
+            st.subheader("📋 Ranking Detalhado de Fornecedores")
+            df_forn_detalhe = df_f.groupby("Entidade")["Valor"].sum().nlargest(10).reset_index()
+            df_forn_detalhe["Valor"]
