@@ -78,11 +78,11 @@ if "autenticado" not in st.session_state:
 if not st.session_state["autenticado"]:
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        st.markdown('''
+        st.markdown("""
             <div class="login-card">
                 <h2 style='color: #f0f6fc; text-align: center;'>🔐 Acesso Restrito</h2>
                 <p style='color: #8b949e; text-align: center;'>Sol Bebidas - Financeiro</p>
-        ''', unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
         
         usuario_input = st.text_input("Utilizador")
         senha_input = st.text_input("Palavra-passe", type="password")
@@ -107,11 +107,11 @@ if not st.session_state["autenticado"]:
 
 # --- EXIBIR UTILIZADOR NO CANTO SUPERIOR DIREITO ---
 usuario_logado = st.session_state.get('usuario_atual', 'Convidado')
-st.markdown(f'''
+st.markdown(f"""
     <div class="user-badge">
         <span>👤 Utilizador:</span> <b>{usuario_logado}</b>
     </div>
-''', unsafe_allow_html=True)
+""", unsafe_allow_html=True)
 
 # --- GESTÃO DE ESTADOS PARA FILTROS DOS CARTÕES ---
 if "filtro_pag" not in st.session_state:
@@ -191,7 +191,6 @@ def processar_relatorio(pdf_path, tipo="pagamento"):
     for i, linha in enumerate(linhas_texto):
         linha_upper = linha.upper()
         
-        # Ignorar rigorosamente qualquer linha de totais, subtotais, resumos ou cabeçalhos
         if any(termo in linha_upper for termo in ["TOTAL", "SUBTOTAL", "RESUMO", "SAIBWEB", "EMISSÃO:", "PÁGINA:", "USUÁRIO:", "QTDE DOC"]):
             continue
             
@@ -304,143 +303,4 @@ if menu_escolha == "Contas a Pagar":
                 st.rerun()
                 
         with c4:
-            st.markdown(f'<div class="card"><div class="metric-title">📊 Média</div><div class="metric-value">{media_val}</div></div>', unsafe_allow_html=True)
-            if st.button("📊 Acima da Média", use_container_width=True, key="b_media_p"):
-                st.session_state["filtro_pag"] = "acima_media"
-                st.rerun()
-
-        df_tabela_pag = df_f.copy()
-        if st.session_state["filtro_pag"] == "maior" and len(df_f) > 0:
-            max_v = df_f["Valor"].max()
-            df_tabela_pag = df_f[df_f["Valor"] == max_v]
-            st.info("ℹ️ A exibir apenas o registo com o **Maior Pagamento**.")
-        elif st.session_state["filtro_pag"] == "acima_media" and len(df_f) > 0:
-            med_v = df_f["Valor"].mean()
-            df_tabela_pag = df_f[df_f["Valor"] > med_v]
-            st.info("ℹ️ A exibir apenas os registos com valores **acima da média**.")
-
-        col_g1, col_g2 = st.columns(2)
-        with col_g1:
-            st.markdown('<div class="card">', unsafe_allow_html=True)
-            st.subheader("📊 Top 5 Fornecedores (Valores)")
-            df_top = df_f.groupby("Entidade")["Valor"].sum().nlargest(5)
-            st.bar_chart(df_top)
-            st.markdown('</div>', unsafe_allow_html=True)
-            
-        with col_g2:
-            st.markdown('<div class="card">', unsafe_allow_html=True)
-            st.subheader("📋 Ranking Detalhado de Fornecedores")
-            df_forn_detalhe = df_f.groupby("Entidade")["Valor"].sum().nlargest(10).reset_index()
-            df_forn_detalhe["Valor"] = df_forn_detalhe["Valor"].apply(lambda x: f"R$ {x:,.2f}")
-            st.dataframe(df_forn_detalhe, use_container_width=True, hide_index=True)
-            st.markdown('</div>', unsafe_allow_html=True)
-
-        st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.subheader("📈 Evolução Temporal de Pagamentos")
-        d_d = df_f.groupby("Vencimento")["Valor"].sum().reset_index()
-        d_d["DT"] = pd.to_datetime(d_d["Vencimento"], format="%d/%m/%Y")
-        st.line_chart(d_d.sort_values("DT").set_index("Vencimento")["Valor"])
-        st.markdown('</div>', unsafe_allow_html=True)
-
-        st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.subheader("📋 Lista Detalhada de Pagamentos")
-        df_tb = df_tabela_pag[["Vencimento", "Entidade", "Valor"]].copy()
-        df_tb.columns = ["Vencimento", "Fornecedor", "Valor"]
-        df_tb["Valor"] = df_tb["Valor"].apply(lambda x: f"R$ {x:,.2f}")
-        st.dataframe(df_tb, use_container_width=True, hide_index=True)
-        st.markdown('</div>', unsafe_allow_html=True)
-    else:
-        st.warning(f"⚠️ Pagamentos - Ficheiro: '{os.path.basename(caminho_pdf_pag)}' | Estado: {msg_p}")
-
-# ==========================================
-# MÓDULO 2: CONTAS A RECEBER
-# ==========================================
-elif menu_escolha == "Contas a Receber":
-    st.markdown('<div class="titulo-customizado">Gestão de Contas a Receber</div>', unsafe_allow_html=True)
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    df_r, msg_r = processar_relatorio(caminho_pdf_rec, "recebimento")
-    
-    if not df_r.empty:
-        anos_r = sorted(df_r["Ano"].unique().tolist())
-        ano_sel_r = st.sidebar.selectbox("Ano (Receber)", anos_r, key="ar2")
-        df_fr = df_r[df_r["Ano"] == ano_sel_r]
-        
-        st.sidebar.markdown("---")
-        st.sidebar.subheader("📅 Período (Receber)")
-        min_dr = df_fr["Data_Obj"].min().date() if not df_fr.empty else pd.to_datetime("2026-01-01").date()
-        max_dr = df_fr["Data_Obj"].max().date() if not df_fr.empty else pd.to_datetime("2026-12-31").date()
-        
-        periodo_r = st.sidebar.date_input("Intervalo de Datas", value=(min_dr, max_dr), format="DD/MM/YYYY", key="date_range_rec")
-        
-        if isinstance(periodo_r, tuple):
-            if len(periodo_r) == 2:
-                d_ini_r, d_fim_r = periodo_r
-                df_fr = df_fr[(df_fr["Data_Obj"].dt.date >= d_ini_r) & (df_fr["Data_Obj"].dt.date <= d_fim_r)]
-            elif len(periodo_r) == 1:
-                d_ini_r = periodo_r[0]
-                df_fr = df_fr[df_fr["Data_Obj"].dt.date == d_ini_r]
-
-        val_total_r = f"R$ {df_fr['Valor'].sum():,.2f}"
-        qtd_reg_r = f"{len(df_fr)}"
-        maior_val_r = f"R$ {df_fr['Valor'].max() if len(df_fr)>0 else 0:,.2f}"
-        media_val_r = f"R$ {df_fr['Valor'].mean() if len(df_fr)>0 else 0:,.2f}"
-
-        cr1, cr2, cr3, cr4 = st.columns(4)
-        
-        with cr1:
-            st.markdown(f'<div class="card"><div class="metric-title">💰 Total a Receber</div><div class="metric-value">{val_total_r}</div></div>', unsafe_allow_html=True)
-            if st.button("🔄 Ver Todos", use_container_width=True, key="b_todos_r"):
-                st.session_state["filtro_rec"] = "todos"
-                st.rerun()
-                
-        with cr2:
-            st.markdown(f'<div class="card"><div class="metric-title">📋 Registos</div><div class="metric-value">{qtd_reg_r}</div></div>', unsafe_allow_html=True)
-            if st.button("📋 Ver Lista Completa", use_container_width=True, key="b_reg_r"):
-                st.session_state["filtro_rec"] = "todos"
-                st.rerun()
-                
-        with cr3:
-            st.markdown(f'<div class="card"><div class="metric-title">📈 Maior Recebimento</div><div class="metric-value">{maior_val_r}</div></div>', unsafe_allow_html=True)
-            if st.button("🔍 Ver Maior Valor", use_container_width=True, key="b_maior_r"):
-                st.session_state["filtro_rec"] = "maior"
-                st.rerun()
-                
-        with cr4:
-            st.markdown(f'<div class="card"><div class="metric-title">📊 Média</div><div class="metric-value">{media_val_r}</div></div>', unsafe_allow_html=True)
-            if st.button("📊 Acima da Média", use_container_width=True, key="b_media_r"):
-                st.session_state["filtro_rec"] = "acima_media"
-                st.rerun()
-
-        # --- SELETOR E TOTAL POR DIA (CONTAS A RECEBER - APENAS DATA E VALOR) ---
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.subheader("📅 Total e Filtro por Dia de Vencimento")
-        
-        df_por_dia = df_fr.groupby("Vencimento")["Valor"].agg(['sum']).reset_index()
-        df_por_dia["DT_Aux"] = pd.to_datetime(df_por_dia["Vencimento"], format="%d/%m/%Y", errors="coerce")
-        df_por_dia = df_por_dia.sort_values("DT_Aux")
-        
-        opcoes_dias = ["Todos os Dias"] + [f"{row['Vencimento']} — Total: R$ {row['sum']:,.2f}" for _, row in df_por_dia.iterrows()]
-        dia_selecionado = st.selectbox("Selecione um dia específico para filtrar:", opcoes_dias, key="sel_dia_rec")
-        st.markdown('</div>', unsafe_allow_html=True)
-
-        df_tabela_rec = df_fr.copy()
-        
-        if dia_selecionado != "Todos os Dias":
-            data_escolhida = dia_selecionado.split(" — ")[0]
-            df_tabela_rec = df_fr[df_fr["Vencimento"] == data_escolhida]
-            st.info(f"ℹ️ A exibir apenas os recebimentos do dia **{data_escolhida}**.")
-        elif st.session_state["filtro_rec"] == "maior" and len(df_fr) > 0:
-            max_vr = df_fr["Valor"].max()
-            df_tabela_rec = df_fr[df_fr["Valor"] == max_vr]
-            st.info("ℹ️ A exibir apenas o registo com o **Maior Recebimento**.")
-        elif st.session_state["filtro_rec"] == "acima_media" and len(df_fr) > 0:
-            med_vr = df_fr["Valor"].mean()
-            df_tabela_rec = df_fr[df_fr["Valor"] > med_vr]
-            st.info("ℹ️ A exibir apenas os registos com valores **acima da média**.")
-
-        col_gr1, col_gr2 = st.columns(2)
-        with col_gr1:
-            st.markdown('<div class="card">', unsafe_allow_html=True)
-            st.subheader("📊 Top
+            st.markdown(f'<div class="card"><div class="metric-
