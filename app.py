@@ -191,8 +191,8 @@ def processar_relatorio(pdf_path, tipo="pagamento"):
     for i, linha in enumerate(linhas_texto):
         linha_upper = linha.upper()
         
-        # Ignorar linhas de totais gerais e cabeçalhos
-        if any(termo in linha_upper for termo in ["TOTAL", "SUBTOTAL", "RESUMO", "SAIBWEB", "EMISSÃO:", "PÁGINA:", "USUÁRIO:", "QTDE DOC"]):
+        # Ignorar apenas cabeçalhos do sistema
+        if any(termo in linha_upper for termo in ["SAIBWEB", "EMISSÃO:", "PÁGINA:", "USUÁRIO:"]):
             continue
             
         if any(k in linha_upper for k in ["FORNECEDOR", "FORN:", "CLIENTE", "CLIFOR:"]):
@@ -213,14 +213,7 @@ def processar_relatorio(pdf_path, tipo="pagamento"):
             vencimento = datas[0]
             valores = re.findall(r'\b\d{1,3}(?:\.\d{3})*,\d{2}\b', linha)
             if valores:
-                # No relatório de recebimentos, o saldo em aberto real de cada linha costuma ser o penúltimo ou último valor dependendo da estrutura.
-                # Vamos isolar rigorosamente o valor correto da coluna de saldo (geralmente o penúltimo valor quando há valor pago/desconto, ou o último se for saldo puro).
-                # Para garantir o batimento exato com os 10.809.974,71 do saldo oficial:
                 valor_float = converter_valor(valores[-1])
-                if len(valores) >= 3 and tipo == "recebimento":
-                    # Ajuste estrutural para ignorar colunas de desconto/juro parciais e focar no saldo
-                    valor_float = converter_valor(valores[-1])
-                
                 if valor_float > 0:
                     registos.append({
                         "Vencimento": vencimento,
@@ -248,7 +241,7 @@ def processar_relatorio(pdf_path, tipo="pagamento"):
         
     df = pd.DataFrame(registos)
     df["Data_Obj"] = pd.to_datetime(df["Vencimento"], format="%d/%m/%Y", errors="coerce")
-    df = df[df["Data_Obj"] >= "2026-01-01"].dropna(subset=["Data_Obj"])
+    df = df.dropna(subset=["Data_Obj"])
     df["Ano"] = df["Data_Obj"].dt.year
     df["Mes"] = df["Data_Obj"].dt.month
     return df, "Ok"
@@ -408,22 +401,4 @@ elif menu_escolha == "Contas a Receber":
                 st.rerun()
                 
         with cr3:
-            st.markdown(f'<div class="card"><div class="metric-title">📈 Maior Recebimento</div><div class="metric-value">{maior_val_r}</div></div>', unsafe_allow_html=True)
-            if st.button("🔍 Ver Maior Valor", use_container_width=True, key="b_maior_r"):
-                st.session_state["filtro_rec"] = "maior"
-                st.rerun()
-                
-        with cr4:
-            st.markdown(f'<div class="card"><div class="metric-title">📊 Média</div><div class="metric-value">{media_val_r}</div></div>', unsafe_allow_html=True)
-            if st.button("📊 Acima da Média", use_container_width=True, key="b_media_r"):
-                st.session_state["filtro_rec"] = "acima_media"
-                st.rerun()
-
-        # --- SELETOR E TOTAL POR DIA (CONTAS A RECEBER - APENAS DATA E VALOR) ---
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.subheader("Total e Filtro por Dia de Vencimento")
-        
-        df_por_dia = df_fr.groupby("Vencimento")["Valor"].agg(['sum']).reset_index()
-        df_por_dia["DT_Aux"] = pd.to_datetime(df_por_dia["Vencimento"], format="%d/%m/%Y", errors="coerce")
-        df_por_dia = df_por_dia.sort_values("DT_Aux")
+            st.markdown(f'<div class="card"><div class="metric-title">📈 Maior Recebimento</div><div class="metric
