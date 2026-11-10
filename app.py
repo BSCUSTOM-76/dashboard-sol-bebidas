@@ -257,42 +257,43 @@ def processar_excel_receber(excel_path):
     if df_raw.empty:
         return pd.DataFrame(), "Ficheiro Excel vazio"
     
-    df_raw.columns = [str(c).strip().upper() for c in df_raw.columns]
+    # Identificação inteligente e segura por posições e colunas
+    colunas = list(df_raw.columns)
     
-    col_data = None
-    col_entidade = None
-    col_valor = None
-    
-    for col in df_raw.columns:
-        if any(k in col for k in ["VENCIMENTO", "DATA", "VCTO"]):
-            col_data = col
-        elif any(k in col for k in ["CLIENTE", "RAZAO", "NOME", "ENTIDADE", "FORNECEDOR", "CLIFOR"]):
-            col_entidade = col
-        elif col in ["VALOR", "VL.", "VLR"] or ("VALOR" in col and "TOTAL" not in col):
-            col_valor = col
+    # Procura a coluna de data (geralmente a primeira ou com nome contendo data/vencimento)
+    col_data = colunas[0]
+    for c in colunas:
+        c_str = str(c).upper()
+        if any(k in c_str for k in ["VENC", "DATA", "VCTO"]):
+            col_data = c
+            break
             
-    if not col_valor:
-        for col in df_raw.columns:
-            if "TOTAL" in col or "PREVISAO" in col:
-                col_valor = col
-                break
-                
-    if not col_data and len(df_raw.columns) > 0:
-        col_data = df_raw.columns[0]
-    if not col_entidade and len(df_raw.columns) > 1:
-        col_entidade = df_raw.columns[1]
-    if not col_valor and len(df_raw.columns) > 2:
-        col_valor = df_raw.columns[2]
-        
+    # Procura a coluna de cliente/entidade
+    col_entidade = colunas[1] if len(colunas) > 1 else colunas[0]
+    for c in colunas:
+        c_str = str(c).upper()
+        if any(k in c_str for k in ["CLIENTE", "NOME", "RAZAO", "CLIFOR", "ENTIDADE"]):
+            col_entidade = c
+            break
+            
+    # Procura a coluna de valor
+    col_valor = colunas[-1] if len(colunas) > 2 else colunas[0]
+    for c in colunas:
+        c_str = str(c).upper()
+        if any(k in c_str for k in ["VALOR", "VL", "VLR", "PREVISAO"]):
+            col_valor = c
+            break
+
     registos = []
     for _, row in df_raw.iterrows():
-        val_data = row[col_data] if col_data else None
-        val_ent = row[col_entidade] if col_entidade else "DIVERSOS"
-        val_num = row[col_valor] if col_valor else 0.0
+        val_data = row[col_data]
+        val_ent = row[col_entidade] if col_entidade in df_raw.columns else "DIVERSOS"
+        val_num = row[col_valor] if col_valor in df_raw.columns else 0.0
         
         if pd.isna(val_data):
             continue
             
+        # Tenta converter a data
         if isinstance(val_data, pd.Timestamp):
             data_obj = val_data
             vencimento_str = data_obj.strftime("%d/%m/%Y")
@@ -303,6 +304,7 @@ def processar_excel_receber(excel_path):
             data_obj = dt_parse
             vencimento_str = data_obj.strftime("%d/%m/%Y")
             
+        # Converte o valor monetário com segurança
         try:
             if isinstance(val_num, (int, float)):
                 valor_float = float(val_num)
@@ -314,7 +316,8 @@ def processar_excel_receber(excel_path):
             
         entidade_str = str(val_ent).strip() if not pd.isna(val_ent) else "DIVERSOS"
         
-        if valor_float > 0 and entidade_str.upper() not in ["CLIENTE", "VALOR", "VENCIMENTO", "NOME", "TOTAL", "TOTAL GERAL"]:
+        # Ignora cabeçalhos repetidos e linhas de totais
+        if valor_float > 0 and entidade_str.upper() not in ["CLIENTE", "VALOR", "VENCIMENTO", "NOME", "TOTAL", "TOTAL GERAL", "TOTAL GE"]:
             registos.append({
                 "Vencimento": vencimento_str,
                 "Entidade": entidade_str,
@@ -395,12 +398,4 @@ if menu_escolha == "Contas a Pagar":
         if st.session_state["filtro_pag"] == "maior" and len(df_f) > 0:
             max_v = df_f["Valor"].max()
             df_tabela_pag = df_f[df_f["Valor"] == max_v]
-            st.info("A exibir apenas o registo com o Maior Pagamento.")
-        elif st.session_state["filtro_pag"] == "acima_media" and len(df_f) > 0:
-            med_v = df_f["Valor"].mean()
-            df_tabela_pag = df_f[df_f["Valor"] > med_v]
-            st.info("A exibir apenas os registos com valores acima da media.")
-
-        col_g1, col_g2 = st.columns(2)
-        with col_g1:
-            st
+            st.info("A
