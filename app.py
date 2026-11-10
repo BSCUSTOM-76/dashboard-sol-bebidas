@@ -155,7 +155,6 @@ for f in fichs:
     if ("RECEBIMENTO" in f_upper or "ANALITICO" in f_upper) and f_upper.endswith((".XLSX", ".XLS")):
         caminho_excel_rec = f_path
 
-# Fallback se não encontrar por nome exato
 if not caminho_pdf_pag:
     caminho_pdf_pag = os.path.join(pasta_dados, "RELATÓRIO PREVISÃO DE PAGAMENTO.pdf")
 if not caminho_excel_rec:
@@ -254,4 +253,91 @@ def processar_relatorio(pdf_path):
 
 @st.cache_data
 def processar_excel_receber(excel_path):
-    if
+    if not excel_path or not os.path.exists(excel_path):
+        return pd.DataFrame(), f"Ficheiro Excel não encontrado no caminho: {excel_path}"
+    try:
+        df_raw = pd.read_excel(excel_path, header=0)
+    except Exception as e:
+        return pd.DataFrame(), f"Erro ao ler Excel: {str(e)}"
+    
+    if df_raw.empty:
+        return pd.DataFrame(), "Ficheiro Excel vazio"
+    
+    df_raw.columns = [str(c).strip().upper() for c in df_raw.columns]
+    
+    col_data, col_entidade, col_valor = None, None, None
+    
+    for col in df_raw.columns:
+        if any(k in col for k in ["VENCIMENTO", "DATA", "VCTO"]):
+            col_data = col
+        elif any(k in col for k in ["CLIENTE", "RAZAO", "NOME", "ENTIDADE", "FORNECEDOR", "CLIFOR"]):
+            col_entidade = col
+        elif col in ["VALOR", "VL.", "VLR"] or ("VALOR" in col and "TOTAL" not in col):
+            col_valor = col
+            
+    if not col_valor:
+        for col in df_raw.columns:
+            if "TOTAL" in col or "PREVISAO" in col:
+                col_valor = col
+                break
+                
+    if not col_data and len(df_raw.columns) > 0:
+        col_data = df_raw.columns[0]
+    if not col_entidade and len(df_raw.columns) > 1:
+        col_entidade = df_raw.columns[1]
+    if not col_valor and len(df_raw.columns) > 2:
+        col_valor = df_raw.columns[2]
+        
+    registos = []
+    for _, row in df_raw.iterrows():
+        val_data = row[col_data] if col_data else None
+        val_ent = row[col_entidade] if col_entidade else "DIVERSOS"
+        val_num = row[col_valor] if col_valor else 0.0
+        
+        if pd.isna(val_data):
+            continue
+            
+        if isinstance(val_data, pd.Timestamp):
+            data_obj = val_data
+            vencimento_str = data_obj.strftime("%d/%m/%Y")
+        else:
+            dt_parse = pd.to_datetime(str(val_data), errors="coerce")
+            if pd.isna(dt_parse):
+                continue
+            data_obj = dt_parse
+            vencimento_str = data_obj.strftime("%d/%m/%Y")
+            
+        try:
+            if isinstance(val_num, (int, float)):
+                valor_float = float(val_num)
+            else:
+                v_limpo = str(val_num).replace("R$", "").replace(" ", "").replace(".", "").replace(",", ".")
+                valor_float = float(v_limpo)
+        except:
+            valor_float = 0.0
+            
+        entidade_str = str(val_ent).strip() if not pd.isna(val_ent) else "DIVERSOS"
+        
+        if valor_float > 0 and entidade_str.upper() not in ["CLIENTE", "VALOR", "VENCIMENTO", "NOME", "TOTAL", "TOTAL GERAL"]:
+            registos.append({
+                "Vencimento": vencimento_str,
+                "Entidade": entidade_str,
+                "Valor": valor_float,
+                "Data_Obj": data_obj
+            })
+            
+    if not registos:
+        return pd.DataFrame(), "Nenhum registo válido extraído do Excel"
+        
+    df = pd.DataFrame(registos)
+    df = df.dropna(subset=["Data_Obj"])
+    df["Ano"] = df["Data_Obj"].dt.year
+    df["Mes"] = df["Data_Obj"].dt.month
+    return df, "Ok"
+
+# ==========================================
+# MODULO 1: CONTAS A PAGAR
+# ==========================================
+if menu_escolha == "Contas a Pagar":
+    st.markdown('<div class="titulo-customizado">Gestao de Contas a Pagar</div>', unsafe_allow_html=True)
+    st.markdown("<br>", unsafe_allow_html
